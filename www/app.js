@@ -220,6 +220,11 @@ function renderBackup() {
 // renderRoutes が無効な data.current を直すので最初に呼ぶ（以降の表示はその路線で描く）
 const render = () => { renderRoutes(); renderBackup(); renderStreak(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
+// 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
+// Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）
+const haptics = isNativeApp ? window.Capacitor.Plugins.Haptics : null;
+const buzz = () => (haptics ? haptics.impact({ style: "LIGHT" }).catch(() => {}) : navigator.vibrate?.(15));
+
 function record(level, label) {
   const d = timeInput();
   if (!d) return toast("時刻を入れてください");
@@ -228,6 +233,7 @@ function record(level, label) {
   if (tags.length) log.tags = tags;
   data.logs.push(log);
   save();
+  buzz();
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
   setTags([]); // 印は1回ごと
   render();
