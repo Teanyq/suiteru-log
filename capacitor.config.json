@@ -1,5 +1,11 @@
 {
   "appId": "app.suiteru.log",
   "appName": "すいてるログ",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_notify",
+      "iconColor": "#0F766E"
+    }
+  }
 }
