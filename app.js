@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -133,7 +133,16 @@ function renderMemos() {
     : [el("li", { className: "empty", textContent: "例: 渋谷 → 5号車3ドア（半蔵門線の階段が目の前）" })]));
 }
 
-const render = () => { renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+function renderStreak() {
+  const { days, todayDone, last7 } = streak(data.logs, new Date());
+  const msg = days ? `平日連続 ${days}日${todayDone ? "" : "（今日はまだ）"}` : "今日の1回目を記録しよう";
+  $("streak").replaceChildren(
+    el("span", { className: "streak-n", textContent: msg }),
+    el("span", { className: "streak-dots", ariaLabel: "直近7日の記録" }, ...last7.map((d) =>
+      el("span", { className: `sd${d.has ? " on" : ""}${d.weekend ? " we" : ""}`, title: DOW[d.dow], textContent: DOW[d.dow] }))));
+}
+
+const render = () => { renderStreak(); renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 function record(level, label) {
   const [h, m] = $("time").value.split(":").map(Number);

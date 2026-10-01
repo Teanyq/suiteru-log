@@ -96,3 +96,28 @@ export function reminderIcs(hhmm, now, url) {
     "END:VEVENT", "END:VCALENDAR", "",
   ].join("\r\n");
 }
+
+const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// 平日の連続記録日数（全路線合算）。今日まだ未記録なら前の平日から数える。
+// ponytail: 祝日は平日扱いなので途切れる。祝日データを持つなら isWeekend を差し替え
+export function streak(logs, now) {
+  const days = new Set(logs.map((l) => l.t.slice(0, 10)));
+  const d = new Date(now);
+  d.setHours(12, 0, 0, 0);
+  const todayDone = days.has(dayKey(d));
+  if (!todayDone) d.setDate(d.getDate() - 1);
+  let count = 0;
+  for (;; d.setDate(d.getDate() - 1)) {
+    if (isWeekend(d.getDay())) continue;
+    if (!days.has(dayKey(d))) break;
+    count++;
+  }
+  const last7 = [...Array(7)].map((_, i) => {
+    const x = new Date(now);
+    x.setHours(12, 0, 0, 0);
+    x.setDate(x.getDate() - 6 + i);
+    return { dow: x.getDay(), has: days.has(dayKey(x)), weekend: isWeekend(x.getDay()) };
+  });
+  return { days: count, todayDone, last7 };
+}

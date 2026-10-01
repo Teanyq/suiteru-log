@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs } from "./core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak } from "./core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -91,4 +91,17 @@ test("reminderIcs builds a weekday recurring event with an alarm at the given ti
   assert.ok(lines.includes("TRIGGER:PT0M"));
   assert.ok(lines.includes("URL:https://example.test/"));
   assert.ok(reminderIcs("19:00", new Date("2026-10-01T18:00:00"), "u").includes("DTSTART:20261001T190000"));
+});
+
+test("streak counts consecutive weekdays, skipping weekends and a not-yet-recorded today", () => {
+  const logs = ["2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"].map((d) => log(`${d}T07:40:00`, 3));
+  const fri = streak(logs, new Date("2026-10-02T20:00:00")); // 火〜金
+  assert.equal(fri.days, 4);
+  assert.equal(fri.todayDone, true);
+  const mon = streak(logs, new Date("2026-10-05T06:00:00")); // 土日をまたぐ・月曜は未記録
+  assert.equal(mon.days, 4);
+  assert.equal(mon.todayDone, false);
+  assert.equal(streak(logs, new Date("2026-10-06T06:00:00")).days, 0); // 月曜を飛ばした
+  assert.deepEqual(mon.last7.map((d) => d.has), [true, true, true, true, false, false, false]); // 9/29〜10/5
+  assert.deepEqual(mon.last7.map((d) => d.weekend), [false, false, false, false, true, true, false]);
 });

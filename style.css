@@ -79,3 +79,9 @@ button { cursor: pointer; }
 .faq dt { font-weight: 600; margin-top: 10px; }
 .faq dd { margin: 2px 0 0; color: var(--muted); }
 details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padding: 6px 0; }
+.streak { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px 0 12px; font-size: .85rem; }
+.streak-n { font-weight: 600; color: var(--accent); }
+.streak-dots { display: flex; gap: 3px; }
+.sd { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .65rem; color: var(--muted); border: 1px solid var(--line); }
+.sd.we { border-style: dashed; }
+.sd.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
