@@ -61,3 +61,6 @@ button { cursor: pointer; }
 #heat th { color: var(--muted); font-weight: 500; }
 #heat td { height: 30px; text-align: center; border-radius: 6px; color: #fff; }
 #heat td.none { background: var(--line); color: transparent; }
+.rec .tag, .rec .better { display: inline-block; margin-top: 2px; padding: 0 6px; border-radius: 6px; font-size: .75rem; font-weight: 600; }
+.rec .tag { border: 1px solid var(--line); }
+.rec .better { background: var(--l1); color: #fff; }

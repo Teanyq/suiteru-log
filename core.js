@@ -41,14 +41,15 @@ export function recommend(logs, routeId, dow, limit = 3) {
       e.n += n;
       slots.set(slot, e);
     }
-    return [...slots]
-      .map(([slot, { sum, n }]) => ({ slot, label: slotLabel(slot), avg: sum / n, n }))
-      .sort((a, b) => a.avg - b.avg || b.n - a.n || a.slot - b.slot)
-      .slice(0, limit);
+    const all = [...slots].map(([slot, { sum, n }]) => ({ slot, label: slotLabel(slot), avg: sum / n, n }));
+    // いつもの枠 = いちばん多く記録した枠（同数なら早い方）
+    const usual = all.reduce((u, s) => (!u || s.n > u.n || (s.n === u.n && s.slot < u.slot) ? s : u), null);
+    const top = all.sort((a, b) => a.avg - b.avg || b.n - a.n || a.slot - b.slot).slice(0, limit);
+    return { top, usual };
   };
-  const top = pick((d) => d === dow);
-  if (top.length) return { top, fallback: false };
-  return { top: pick((d) => isWeekend(d) === isWeekend(dow)), fallback: true };
+  const exact = pick((d) => d === dow);
+  if (exact.top.length) return { ...exact, fallback: false };
+  return { ...pick((d) => isWeekend(d) === isWeekend(dow)), fallback: true };
 }
 
 const T_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;

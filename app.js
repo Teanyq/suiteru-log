@@ -77,7 +77,7 @@ function renderRoutes() {
 function renderRecommend() {
   const box = $("recommend");
   const today = new Date().getDay();
-  const { top, fallback } = recommend(data.logs, data.current, today);
+  const { top, fallback, usual } = recommend(data.logs, data.current, today);
   if (!top.length) {
     box.replaceChildren(el("p", { className: "empty", textContent: "記録がたまると、空いている時間帯をここに出します。まずは今日の電車を記録してみてください。" }));
     return;
@@ -86,11 +86,16 @@ function renderRecommend() {
     el("li", {},
       el("span", { className: "dot", style: `background:${color(s.avg)}` }),
       el("span", { className: "time", textContent: `${s.label}台` }),
-      el("span", { className: "meta", textContent: `平均 ${s.avg.toFixed(1)} ・ ${s.n}回` }))));
+      el("span", { className: "meta" },
+        `平均 ${s.avg.toFixed(1)} ・ ${s.n}回`,
+        ...(s.slot === usual.slot ? [el("br"), el("span", { className: "tag", textContent: "いつもの" })]
+          : usual.avg - s.avg >= 0.5 ? [el("br"), el("span", { className: "better", textContent: `いつもより ${(usual.avg - s.avg).toFixed(1)} 空き` })]
+          : [])))));
   const note = fallback
     ? `${DOW[today]}曜のデータがまだ無いので、${today === 0 || today === 6 ? "休日" : "平日"}全体から出しています。`
     : `${DOW[today]}曜の記録から、混雑が少ない順に表示しています。`;
-  box.replaceChildren(list, el("p", { className: "note", textContent: note }));
+  const usualLine = el("p", { className: "note", textContent: `いつもの時刻: ${usual.label}台（平均 ${usual.avg.toFixed(1)}・${usual.n}回）` });
+  box.replaceChildren(list, usualLine, el("p", { className: "note", textContent: note }));
 }
 
 function renderHeat() {

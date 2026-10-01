@@ -58,3 +58,15 @@ test("parseBackup rejects non-backup input", () => {
   assert.throws(() => parseBackup("not json"));
   assert.throws(() => parseBackup(JSON.stringify({ routes: [], logs: [] })));
 });
+
+test("recommend reports the usual (most-recorded) slot from the same pool", () => {
+  const logs = [
+    log("2026-10-01T07:30:00", 5), log("2026-10-08T07:31:00", 4), log("2026-09-24T07:40:00", 4),
+    log("2026-10-01T08:15:00", 2),
+  ];
+  const r = recommend(logs, "r1", THU);
+  assert.equal(r.usual.label, "07:30");
+  assert.equal(r.usual.n, 3);
+  assert.ok(Math.abs(r.usual.avg - 13 / 3) < 1e-9);
+  assert.equal(recommend([], "r1", THU).usual, null);
+});
