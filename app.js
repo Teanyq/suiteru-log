@@ -23,9 +23,16 @@ function load() {
 }
 const data = load();
 data.memos ??= []; // 乗換メモ追加前のデータ
+// 保存失敗はトーストだと直後の「記録しました」等で上書きされて見えないので、成功するまで上部に出し続ける
+let saveFailed = false;
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(data)); }
-  catch { toast("保存できませんでした（プライベートモード？）"); }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+    saveFailed = false;
+  } catch {
+    saveFailed = true;
+  }
+  renderBackup();
 }
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -185,6 +192,13 @@ function exportBackup() {
 function renderBackup() {
   $("last-export").textContent = data.lastExport ? `最後の書き出し: ${data.lastExport}` : "まだ書き出していません。";
   const nudge = $("backup-nudge");
+  nudge.role = saveFailed ? "alert" : null;
+  if (saveFailed) {
+    nudge.hidden = false;
+    nudge.replaceChildren(el("span", { textContent: "保存できませんでした。この画面を閉じると直近の記録が消えます（プライベートモードや空き容量不足が原因のことがあります）。「書き出す」で控えを取れます。" }),
+      el("button", { type: "button", textContent: "いま書き出す", onclick: exportBackup }));
+    return;
+  }
   nudge.hidden = !needsBackup(data, new Date());
   if (nudge.hidden) return;
   nudge.replaceChildren(
