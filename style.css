@@ -85,3 +85,5 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .sd { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .65rem; color: var(--muted); border: 1px solid var(--line); }
 .sd.we { border-style: dashed; }
 .sd.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.forecast { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; font-size: .9rem; min-height: 1.5em; }
+.fc-meta { color: var(--muted); font-size: .8rem; }

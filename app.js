@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -35,6 +35,26 @@ const localIso = (d) =>
 function setTime(shiftMin = 0) {
   const d = new Date(Date.now() + shiftMin * 60000);
   $("time").value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  renderForecast();
+}
+
+function renderForecast() {
+  const [h, m] = $("time").value.split(":").map(Number);
+  const box = $("forecast");
+  if (Number.isNaN(h)) return box.replaceChildren();
+  const slot = Math.floor((h * 60 + m) / 15);
+  const dow = new Date().getDay();
+  const f = forecast(data.logs, data.current, dow, slot);
+  if (f.avg === null) {
+    box.replaceChildren(`${slotLabel(slot)}台の予想: あと${f.remaining}回記録すると出ます`);
+    return;
+  }
+  const scope = f.scope === "day" ? `${DOW[dow]}曜` : dow === 0 || dow === 6 ? "休日" : "平日";
+  box.replaceChildren(
+    el("span", { className: "dot", style: `background:${color(f.avg)}` }),
+    `${slotLabel(slot)}台の予想: `,
+    el("strong", { textContent: `${LEVELS[Math.round(f.avg) - 1][1]}（${f.avg.toFixed(1)}）` }),
+    el("span", { className: "fc-meta", textContent: ` ${scope}${f.n}回` }));
 }
 
 let toastTimer;
@@ -142,7 +162,7 @@ function renderStreak() {
       el("span", { className: `sd${d.has ? " on" : ""}${d.weekend ? " we" : ""}`, title: DOW[d.dow], textContent: DOW[d.dow] }))));
 }
 
-const render = () => { renderStreak(); renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+const render = () => { renderStreak(); renderForecast(); renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 function record(level, label) {
   const [h, m] = $("time").value.split(":").map(Number);
@@ -160,6 +180,7 @@ $("levels").append(...LEVELS.map(([n, label]) =>
   el("button", { type: "button", style: `background:var(--l${n})`, onclick: () => record(n, label) },
     el("span", { className: "n", textContent: n }), label)));
 
+$("time").addEventListener("input", renderForecast);
 document.querySelectorAll("[data-shift]").forEach((b) =>
   b.addEventListener("click", () => setTime(Number(b.dataset.shift))));
 

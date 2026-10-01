@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak } from "./core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast } from "./core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -104,4 +104,15 @@ test("streak counts consecutive weekdays, skipping weekends and a not-yet-record
   assert.equal(streak(logs, new Date("2026-10-06T06:00:00")).days, 0); // 月曜を飛ばした
   assert.deepEqual(mon.last7.map((d) => d.has), [true, true, true, true, false, false, false]); // 9/29〜10/5
   assert.deepEqual(mon.last7.map((d) => d.weekend), [false, false, false, false, true, true, false]);
+});
+
+test("forecast uses the weekday when it has enough data, else the day-type, else says how many more", () => {
+  const thu = ["2026-09-17", "2026-09-24", "2026-10-01"].map((d) => log(`${d}T07:40:00`, 4));
+  const wed = [log("2026-09-30T07:35:00", 1)];
+  const a = forecast([...thu, ...wed], "r1", THU, 30);
+  assert.deepEqual([a.avg, a.n, a.scope], [4, 3, "day"]);
+  const b = forecast([...thu, ...wed], "r1", FRI, 30);
+  assert.deepEqual([b.avg, b.n, b.scope], [13 / 4, 4, "type"]);
+  const c = forecast(wed, "r1", FRI, 30);
+  assert.deepEqual([c.avg, c.remaining], [null, 2]);
 });

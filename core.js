@@ -121,3 +121,17 @@ export function streak(logs, now) {
   });
   return { days: count, todayDone, last7 };
 }
+
+// 指定曜日・枠の混雑予想。同じ曜日で need 件あればそれ、なければ平日/休日まとめ、それでも足りなければ残り件数
+export function forecast(logs, routeId, dow, slot, need = 3) {
+  const agg = aggregate(logs, routeId);
+  let sum = 0, n = 0;
+  for (const [key, e] of agg) {
+    const [d, s] = key.split("-").map(Number);
+    if (s === slot && isWeekend(d) === isWeekend(dow)) { sum += e.sum; n += e.n; }
+  }
+  const day = agg.get(`${dow}-${slot}`);
+  if (day && day.n >= need) return { avg: day.sum / day.n, n: day.n, scope: "day" };
+  if (n >= need) return { avg: sum / n, n, scope: "type" };
+  return { avg: null, n, remaining: need - n };
+}
