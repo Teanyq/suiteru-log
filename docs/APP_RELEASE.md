@@ -43,3 +43,4 @@
 - Capacitor 8.5（`@capacitor/core` `android` `ios`、CLI は devDependencies）。Web を直したら `npm run sync` でネイティブ側へコピー
 - 仮のアプリ ID: `app.suiteru.log`（`capacitor.config.json`）。提出前に確定が必要
 - `npm audit` で moderate 3 件: すべて開発用 CLI が Xcode プロジェクト編集に使う `xcode` パッケージ由来で、アプリには含まれない。`audit fix --force` は破壊的変更になるので見送り、CLI の更新で解消されるのを待つ
+- 2026-10-02: Android ビルド環境を導入（ユーザー承認のうえ Android Studio 2026.1.4.7、SDK Platform 36 / Build-Tools 36・35、Temurin JDK 21。Android SDK ライセンスに同意）。`assembleDebug` で app-debug.apk（4.1MB、app.suiteru.log、targetSdk 36、www 同梱）を確認

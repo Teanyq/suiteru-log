@@ -49,6 +49,17 @@ npm test
 
 依存パッケージはないので `npm install` は不要（`node --test` を使うので Node.js 20 以上が目安。v24 で確認済み）。
 
+## Android アプリをビルドする
+
+必要なもの: Android SDK（Platform 36・Build-Tools 36）と **JDK 21**（Android Studio 同梱の JDK 25 では Gradle 8.14 が動かない）。
+
+```bash
+npm run sync
+cd android && JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-21.0.12.101-hotspot" ./gradlew assembleDebug
+```
+
+できあがり: `android/app/build/outputs/apk/debug/app-debug.apk`（SDK の場所は `android/local.properties`。git 管理外）
+
 ## データ形式
 
 localStorage のキー `suiteru.v1`：
