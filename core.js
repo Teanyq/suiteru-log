@@ -186,3 +186,9 @@ export function needsBackup({ logs, lastExport }, now, minLogs = 20, days = 30) 
   d.setDate(d.getDate() - days);
   return lastExport < dayKey(d);
 }
+
+// ホーム画面ショートカット等の ./?rec=N で開いた時の即記録。リンクは誰でも作れるので厳密に 1〜5 の整数 1 個だけ受け付ける
+export function recParam(search) {
+  const all = new URLSearchParams(search).getAll("rec");
+  return all.length === 1 && /^[1-5]$/.test(all[0]) ? Number(all[0]) : null;
+}

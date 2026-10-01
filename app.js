@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -335,6 +335,14 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { au
 autoRoute();
 setTime();
 render();
+
+// ./?rec=N（Android のアイコン長押しショートカット等）で開いたら即記録。
+// 先に URL から外すので、再読み込みや「戻る」で二重に記録されない。取消はトーストから
+const quick = recParam(location.search);
+if (quick) {
+  history.replaceState(null, "", location.pathname + location.hash);
+  record(quick, LEVELS[quick - 1][1]);
+}
 // ストレージ逼迫時にブラウザが勝手に消さないよう依頼（許可されなくても動作は同じ）
 navigator.storage?.persist?.().catch(() => {});
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

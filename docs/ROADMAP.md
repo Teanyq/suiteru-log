@@ -53,7 +53,7 @@
 - [x] 公開手順書 docs/PUBLISH.md（承認後の手順と、iPhone/Android 実機での確認チェックリスト）
 
 ## Stage 12: 記録までの手間を減らす（dashboard ブレスト 2026-10-01 より）
-- [ ] `?rec=1〜5` で開くと即記録（取消付き。再読み込み・戻るで二重記録しない）＋ manifest の shortcuts（Android はアイコン長押しから記録。iOS は shortcuts 非対応）
+- [x] `?rec=1〜5` で開くと即記録（取消付き。再読み込み・戻るで二重記録しない）＋ manifest の shortcuts（Android はアイコン長押しから記録。iOS は shortcuts 非対応）
 
 ## 不採用メモ
 - 降車アラーム: PWA は画面ロックで位置情報停止

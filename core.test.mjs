@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup } from "./core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam } from "./core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -189,4 +189,12 @@ test("period (試験・休暇) tag is a known tag and excluded from aggregation"
   ] }));
   assert.deepEqual(d.logs[0].tags, ["period"]);
   assert.deepEqual(aggregate(d.logs, "r1").get(`${THU}-30`), { sum: 4, n: 1 });
+});
+
+test("recParam accepts only a single integer level 1-5", () => {
+  assert.equal(recParam("?rec=4"), 4);
+  assert.equal(recParam("?x=1&rec=1"), 1);
+  for (const bad of ["", "?rec=0", "?rec=6", "?rec=3.5", "?rec=abc", "?rec=", "?rec=4&rec=5", "?rec=04x"]) {
+    assert.equal(recParam(bad), null, bad);
+  }
 });

@@ -27,5 +27,27 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "混んでるで記録",
+      "short_name": "混んでる",
+      "url": "./?rec=4"
+    },
+    {
+      "name": "ぎゅうぎゅうで記録",
+      "short_name": "ぎゅうぎゅう",
+      "url": "./?rec=5"
+    },
+    {
+      "name": "立つけど余裕で記録",
+      "short_name": "立つけど余裕",
+      "url": "./?rec=3"
+    },
+    {
+      "name": "座れるで記録",
+      "short_name": "座れる",
+      "url": "./?rec=2"
+    }
   ]
 }
