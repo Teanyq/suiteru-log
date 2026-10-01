@@ -87,3 +87,7 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .sd.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .forecast { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; font-size: .9rem; min-height: 1.5em; }
 .fc-meta { color: var(--muted); font-size: .8rem; }
+.tags { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.tags button { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; font-size: .85rem; }
+.tags button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.tags-hint { color: var(--muted); font-size: .75rem; }

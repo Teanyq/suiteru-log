@@ -134,3 +134,21 @@ test("resolveTime maps HH:MM to the most recent past occurrence", () => {
   assert.equal(resolveTime("07:40", new Date("2026-10-02T08:00:00")).getDate(), 2);
   assert.equal(resolveTime("", now), null);
 });
+
+test("tagged (delay/rain) records are excluded from aggregation", () => {
+  const agg = aggregate([
+    log("2026-10-01T07:31:00", 2),
+    { ...log("2026-10-01T07:35:00", 5), tags: ["delay"] },
+    { ...log("2026-10-01T07:40:00", 5), tags: ["rain"] },
+  ], "r1");
+  assert.deepEqual(agg.get(`${THU}-30`), { sum: 2, n: 1 });
+});
+
+test("parseBackup keeps only known tags", () => {
+  const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }], logs: [
+    { route: "r1", t: "2026-10-01T07:40:00", level: 3, tags: ["rain", "x", "delay", "rain"] },
+    { route: "r1", t: "2026-10-01T07:41:00", level: 3, tags: "delay" },
+    { route: "r1", t: "2026-10-01T07:42:00", level: 3 },
+  ] }));
+  assert.deepEqual(d.logs.map((l) => l.tags), [["rain", "delay"], undefined, undefined]);
+});

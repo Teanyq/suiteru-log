@@ -12,11 +12,14 @@ export const slotLabel = (slot) => {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 };
 
-// key "曜日-枠" -> { sum, n }
+// 遅延・雨など平常でない記録につける印。集計（おすすめ・予想・ヒートマップ）からは外す
+export const TAGS = { delay: "遅延", rain: "雨" };
+
+// key "曜日-枠" -> { sum, n }（平常時の記録のみ）
 export function aggregate(logs, routeId) {
   const agg = new Map();
   for (const l of logs) {
-    if (l.route !== routeId) continue;
+    if (l.route !== routeId || l.tags?.length) continue;
     const key = `${new Date(l.t).getDay()}-${slotOf(l.t)}`;
     const e = agg.get(key) ?? { sum: 0, n: 0 };
     e.sum += l.level;
@@ -64,7 +67,10 @@ export function parseBackup(text) {
   const ids = new Set(routes.map((r) => r.id));
   const logs = (Array.isArray(raw.logs) ? raw.logs : [])
     .filter((l) => ids.has(l?.route) && T_RE.test(l?.t) && Number.isInteger(l?.level) && l.level >= 1 && l.level <= 5)
-    .map(({ route, t, level }) => ({ route, t, level }));
+    .map(({ route, t, level, tags }) => {
+      const ok = Array.isArray(tags) ? [...new Set(tags)].filter((x) => Object.hasOwn(TAGS, x)) : [];
+      return ok.length ? { route, t, level, tags: ok } : { route, t, level };
+    });
   const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
   const memos = (Array.isArray(raw.memos) ? raw.memos : [])
     .map((m) => ({ route: m?.route, station: str(m?.station, 20), text: str(m?.text, 100) }))

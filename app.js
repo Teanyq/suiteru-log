@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -85,7 +85,7 @@ function renderHistory() {
     .sort((a, b) => b.t.localeCompare(a.t)).slice(0, 10);
   $("history-list").replaceChildren(...(recent.length ? recent.map((l) => el("li", {},
     el("span", { className: "dot", style: `background:var(--l${l.level})` }),
-    `${fmt(l.t)}  ${LEVELS[l.level - 1][1]}`,
+    `${fmt(l.t)}  ${LEVELS[l.level - 1][1]}${(l.tags ?? []).map((x) => `・${TAGS[x]}`).join("")}`,
     el("button", { type: "button", textContent: "削除", ariaLabel: `${fmt(l.t)}の記録を削除`, onclick: () => removeLog(l) })))
     : [el("li", { className: "empty", textContent: "まだ記録がありません" })]));
 }
@@ -171,11 +171,27 @@ function record(level, label) {
   const d = timeInput();
   if (!d) return toast("時刻を入れてください");
   const log = { route: data.current, t: localIso(d), level };
+  if (activeTags.size) log.tags = [...activeTags];
   data.logs.push(log);
   save();
+  const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
+  setTags([]); // 印は1回ごと
   render();
-  toast(`${$("time").value} に「${label}」を記録`, () => removeLog(log));
+  toast(`${$("time").value} に「${label}」を記録${note}`, () => removeLog(log));
 }
+
+const activeTags = new Set();
+function setTags(list) {
+  activeTags.clear();
+  list.forEach((x) => activeTags.add(x));
+  for (const b of $("tags").querySelectorAll("button")) b.ariaPressed = String(activeTags.has(b.dataset.tag));
+}
+$("tags").append(...Object.entries(TAGS).map(([key, label]) => {
+  const b = el("button", { type: "button", textContent: label, ariaPressed: "false" });
+  b.dataset.tag = key;
+  b.onclick = () => setTags(activeTags.has(key) ? [...activeTags].filter((x) => x !== key) : [...activeTags, key]);
+  return b;
+}), el("span", { className: "tags-hint", textContent: "← いつもと違う日は印をつけて記録" }));
 
 $("levels").append(...LEVELS.map(([n, label]) =>
   el("button", { type: "button", style: `background:var(--l${n})`, onclick: () => record(n, label) },
