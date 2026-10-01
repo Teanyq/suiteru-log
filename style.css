@@ -98,3 +98,5 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .nudge button { padding: 6px 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .period { display: flex; align-items: center; gap: 6px; margin: -4px 0 10px; font-size: .8rem; color: var(--muted); }
 .period input { width: 18px; height: 18px; accent-color: var(--accent); }
+.foot { margin: 20px 4px 0; color: var(--muted); font-size: .75rem; line-height: 1.6; }
+.foot p { margin: 0 0 6px; }
