@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime } from "./core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent } from "./core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -151,4 +151,10 @@ test("parseBackup keeps only known tags", () => {
     { route: "r1", t: "2026-10-01T07:42:00", level: 3 },
   ] }));
   assert.deepEqual(d.logs.map((l) => l.tags), [["rain", "delay"], undefined, undefined]);
+});
+
+test("recent keeps only the last 90 days", () => {
+  const now = new Date("2026-10-01T08:00:00");
+  const logs = [log("2026-07-03T07:40:00", 3), log("2026-07-02T23:59:00", 3), log("2026-10-01T07:40:00", 3)];
+  assert.deepEqual(recent(logs, now).map((l) => l.t.slice(0, 10)), ["2026-07-03", "2026-10-01"]);
 });

@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -38,6 +38,8 @@ function setTime(shiftMin = 0) {
   renderForecast();
 }
 
+// おすすめ・予想・ヒートマップは直近90日の記録だけで判断する
+const recentLogs = () => recent(data.logs, new Date());
 const timeInput = () => resolveTime($("time").value, new Date());
 const dayType = (dow) => (isWeekend(dow) ? "休日" : "平日");
 
@@ -47,7 +49,7 @@ function renderForecast() {
   if (!d) return box.replaceChildren();
   const slot = slotOf(localIso(d));
   const dow = d.getDay();
-  const f = forecast(data.logs, data.current, dow, slot);
+  const f = forecast(recentLogs(), data.current, dow, slot);
   if (f.avg === null) {
     box.replaceChildren(`${slotLabel(slot)}台の予想: あと${f.remaining}回記録すると出ます`);
     return;
@@ -101,9 +103,12 @@ function renderRoutes() {
 function renderRecommend() {
   const box = $("recommend");
   const today = new Date().getDay();
-  const { top, fallback, usual } = recommend(data.logs, data.current, today);
+  const { top, fallback, usual } = recommend(recentLogs(), data.current, today);
+  const mine = (logs) => logs.filter((l) => l.route === data.current).length;
+  const old = mine(data.logs) - mine(recentLogs());
+  const oldLine = old ? [el("p", { className: "note", textContent: `90日より前の記録${old}件は、季節やダイヤ改正でずれるので使っていません。` })] : [];
   if (!top.length) {
-    box.replaceChildren(el("p", { className: "empty", textContent: "記録がたまると、空いている時間帯をここに出します。まずは今日の電車を記録してみてください。" }));
+    box.replaceChildren(el("p", { className: "empty", textContent: "記録がたまると、空いている時間帯をここに出します。まずは今日の電車を記録してみてください。" }), ...oldLine);
     return;
   }
   const list = el("ol", { className: "rec" }, ...top.map((s) =>
@@ -120,11 +125,11 @@ function renderRecommend() {
     : `${DOW[today]}曜の記録から、混雑が少ない順に表示しています。`;
   if (!$("remind-time").value) $("remind-time").value = usual.label;
   const usualLine = el("p", { className: "note", textContent: `いつもの時刻: ${usual.label}台（平均 ${usual.avg.toFixed(1)}・${usual.n}回）` });
-  box.replaceChildren(list, usualLine, el("p", { className: "note", textContent: note }));
+  box.replaceChildren(list, usualLine, el("p", { className: "note", textContent: note }), ...oldLine);
 }
 
 function renderHeat() {
-  const agg = aggregate(data.logs, data.current);
+  const agg = aggregate(recentLogs(), data.current);
   const slots = [...new Set([...agg.keys()].map((k) => Number(k.split("-")[1])))].sort((a, b) => a - b);
   const table = $("heat");
   if (!slots.length) {

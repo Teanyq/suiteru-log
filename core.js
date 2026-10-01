@@ -165,3 +165,11 @@ export function resolveTime(hhmm, now) {
   if (d - now > 60000) d.setDate(d.getDate() - 1);
   return d;
 }
+
+// 季節・ダイヤ改正で古い記録はずれるので、判断に使うのは直近 days 日だけ（t は固定書式なので文字列比較でよい）
+export function recent(logs, now, days = 90) {
+  const d = new Date(now);
+  d.setDate(d.getDate() - days);
+  const cutoff = `${dayKey(d)}T00:00:00`;
+  return logs.filter((l) => l.t >= cutoff);
+}
