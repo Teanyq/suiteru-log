@@ -235,6 +235,14 @@ $("add-route").addEventListener("click", () => {
   save();
   render();
 });
+$("rename-route").addEventListener("click", () => {
+  const r = data.routes.find((x) => x.id === data.current);
+  const name = prompt("路線名（例: 田園都市線 上り）", r.name)?.trim();
+  if (!name || name === r.name) return;
+  r.name = name.slice(0, 40);
+  save();
+  render();
+});
 $("del-route").addEventListener("click", () => {
   const r = data.routes.find((x) => x.id === data.current);
   const n = data.logs.filter((l) => l.route === r.id).length;

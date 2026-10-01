@@ -23,7 +23,7 @@ button { cursor: pointer; }
 
 .route-row { display: flex; gap: 8px; }
 .route-row select { flex: 1; min-width: 0; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
-.route-row button { width: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
+.route-row button { min-width: 44px; padding: 0 8px; white-space: nowrap; flex: none; font-size: .85rem; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
 
 .time-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
 .time-row input { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); }
