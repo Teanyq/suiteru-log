@@ -167,3 +167,17 @@ test("needsBackup nudges only with enough data and no export in 30 days", () => 
   assert.equal(needsBackup({ logs: logs(20), lastExport: "2026-09-02" }, now), false);
   assert.equal(needsBackup({ logs: logs(20), lastExport: "2026-08-31" }, now), true);
 });
+
+test("recommend reports pool size so the UI can tell how many more records are needed", () => {
+  const r = recommend([log("2026-10-01T07:30:00", 3), log("2026-10-01T07:45:00", 2)], "r1", THU);
+  assert.equal(r.total, 2);
+  assert.equal(r.slots, 2);
+  assert.equal(recommend([], "r1", THU).total, 0);
+});
+
+test("recommend falls back to the day-type pool when the weekday has too little to compare", () => {
+  const wed = ["07:30", "07:45", "08:00"].map((t) => log(`2026-09-30T${t}:00`, 3));
+  const r = recommend([...wed, log("2026-10-01T07:30:00", 5)], "r1", THU);
+  assert.equal(r.fallback, true); // 木曜は1件だけ → 平日全体で比べる
+  assert.equal(r.total, 4);
+});

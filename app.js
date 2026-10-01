@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -103,12 +103,15 @@ function renderRoutes() {
 function renderRecommend() {
   const box = $("recommend");
   const today = new Date().getDay();
-  const { top, fallback, usual } = recommend(recentLogs(), data.current, today);
+  const { top, fallback, usual, total, slots } = recommend(recentLogs(), data.current, today);
   const mine = (logs) => logs.filter((l) => l.route === data.current).length;
   const old = mine(data.logs) - mine(recentLogs());
   const oldLine = old ? [el("p", { className: "note", textContent: `90日より前の記録${old}件は、季節やダイヤ改正でずれるので使っていません。` })] : [];
-  if (!top.length) {
-    box.replaceChildren(el("p", { className: "empty", textContent: "記録がたまると、空いている時間帯をここに出します。まずは今日の電車を記録してみてください。" }), ...oldLine);
+  if (total < MIN_TOTAL || slots < 2) {
+    const msg = total < MIN_TOTAL
+      ? `あと${MIN_TOTAL - total}回記録すると、空いている時間帯をここに出します。`
+      : "いつもと違う時間に乗った日も記録すると、どの時間が空いているか比べて出します。";
+    box.replaceChildren(el("p", { className: "empty", textContent: msg }), ...oldLine);
     return;
   }
   const list = el("ol", { className: "rec" }, ...top.map((s) =>
@@ -133,7 +136,7 @@ function renderHeat() {
   const slots = [...new Set([...agg.keys()].map((k) => Number(k.split("-")[1])))].sort((a, b) => a - b);
   const table = $("heat");
   if (!slots.length) {
-    table.replaceChildren(el("caption", { className: "empty", textContent: "まだ記録がありません" }));
+    table.replaceChildren(el("caption", { className: "empty", textContent: "1回記録すると、ここに曜日×時間の混み具合が出ます" }));
     return;
   }
   const head = el("tr", {}, el("th"), ...DOW_ORDER.map((d) => el("th", { scope: "col", textContent: DOW[d] })));

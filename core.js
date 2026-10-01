@@ -31,7 +31,10 @@ export function aggregate(logs, routeId) {
 
 export const isWeekend = (dow) => dow === 0 || dow === 6;
 
-// その曜日にデータが無ければ、同じ種別（平日/休日）の全曜日で代替する
+// 比べるには最低 MIN_TOTAL 件・2 枠いる。その曜日で足りなければ同じ種別（平日/休日）の全曜日で代替する
+export const MIN_TOTAL = 3;
+const enough = (p) => p.total >= MIN_TOTAL && p.slots >= 2;
+
 export function recommend(logs, routeId, dow, limit = 3) {
   const agg = aggregate(logs, routeId);
   const pick = (match) => {
@@ -47,11 +50,12 @@ export function recommend(logs, routeId, dow, limit = 3) {
     const all = [...slots].map(([slot, { sum, n }]) => ({ slot, label: slotLabel(slot), avg: sum / n, n }));
     // いつもの枠 = いちばん多く記録した枠（同数なら早い方）
     const usual = all.reduce((u, s) => (!u || s.n > u.n || (s.n === u.n && s.slot < u.slot) ? s : u), null);
+    const total = all.reduce((t, s) => t + s.n, 0);
     const top = all.sort((a, b) => a.avg - b.avg || b.n - a.n || a.slot - b.slot).slice(0, limit);
-    return { top, usual };
+    return { top, usual, total, slots: all.length };
   };
   const exact = pick((d) => d === dow);
-  if (exact.top.length) return { ...exact, fallback: false };
+  if (enough(exact)) return { ...exact, fallback: false };
   return { ...pick((d) => isWeekend(d) === isWeekend(dow)), fallback: true };
 }
 
