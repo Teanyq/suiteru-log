@@ -1,0 +1,138 @@
+import { aggregate, recommend, slotLabel } from "./core.js";
+
+const KEY = "suiteru.v1";
+const LEVELS = [
+  [1, "ガラガラ"], [2, "座れる"], [3, "立つけど余裕"], [4, "混んでる"], [5, "ぎゅうぎゅう"],
+];
+const DOW = ["日", "月", "火", "水", "木", "金", "土"];
+const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const color = (avg) => `var(--l${Math.min(5, Math.max(1, Math.round(avg)))})`;
+const $ = (id) => document.getElementById(id);
+const el = (tag, props = {}, ...kids) => {
+  const e = Object.assign(document.createElement(tag), props);
+  e.append(...kids);
+  return e;
+};
+
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if (d && Array.isArray(d.routes) && Array.isArray(d.logs)) return d;
+  } catch {}
+  return { routes: [{ id: "r1", name: "いつもの路線" }], logs: [], current: "r1" };
+}
+const data = load();
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(data)); }
+  catch { toast("保存できませんでした（プライベートモード？）"); }
+}
+
+const pad = (n) => String(n).padStart(2, "0");
+const localIso = (d) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+
+function setTime(shiftMin = 0) {
+  const d = new Date(Date.now() + shiftMin * 60000);
+  $("time").value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+let toastTimer;
+function toast(msg) {
+  $("toast").textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ($("toast").textContent = ""), 4000);
+}
+
+function renderRoutes() {
+  const sel = $("route");
+  sel.replaceChildren(...data.routes.map((r) => el("option", { value: r.id, textContent: r.name })));
+  if (!data.routes.some((r) => r.id === data.current)) data.current = data.routes[0]?.id;
+  sel.value = data.current;
+  $("del-route").disabled = data.routes.length <= 1;
+}
+
+function renderRecommend() {
+  const box = $("recommend");
+  const today = new Date().getDay();
+  const { top, fallback } = recommend(data.logs, data.current, today);
+  if (!top.length) {
+    box.replaceChildren(el("p", { className: "empty", textContent: "記録がたまると、空いている時間帯をここに出します。まずは今日の電車を記録してみてください。" }));
+    return;
+  }
+  const list = el("ol", { className: "rec" }, ...top.map((s) =>
+    el("li", {},
+      el("span", { className: "dot", style: `background:${color(s.avg)}` }),
+      el("span", { className: "time", textContent: `${s.label}台` }),
+      el("span", { className: "meta", textContent: `平均 ${s.avg.toFixed(1)} ・ ${s.n}回` }))));
+  const note = fallback
+    ? `${DOW[today]}曜のデータがまだ無いので、${today === 0 || today === 6 ? "休日" : "平日"}全体から出しています。`
+    : `${DOW[today]}曜の記録から、混雑が少ない順に表示しています。`;
+  box.replaceChildren(list, el("p", { className: "note", textContent: note }));
+}
+
+function renderHeat() {
+  const agg = aggregate(data.logs, data.current);
+  const slots = [...new Set([...agg.keys()].map((k) => Number(k.split("-")[1])))].sort((a, b) => a - b);
+  const table = $("heat");
+  if (!slots.length) {
+    table.replaceChildren(el("caption", { className: "empty", textContent: "まだ記録がありません" }));
+    return;
+  }
+  const head = el("tr", {}, el("th"), ...DOW_ORDER.map((d) => el("th", { scope: "col", textContent: DOW[d] })));
+  const rows = slots.map((slot) => el("tr", {},
+    el("th", { scope: "row", textContent: slotLabel(slot) }),
+    ...DOW_ORDER.map((d) => {
+      const e = agg.get(`${d}-${slot}`);
+      if (!e) return el("td", { className: "none", textContent: "-" });
+      const avg = e.sum / e.n;
+      return el("td", { textContent: avg.toFixed(1), title: `${e.n}回`, style: `background:${color(avg)}` });
+    })));
+  table.replaceChildren(el("thead", {}, head), el("tbody", {}, ...rows));
+}
+
+const render = () => { renderRoutes(); renderRecommend(); renderHeat(); };
+
+function record(level, label) {
+  const [h, m] = $("time").value.split(":").map(Number);
+  if (Number.isNaN(h)) return toast("時刻を入れてください");
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  data.logs.push({ route: data.current, t: localIso(d), level });
+  save();
+  render();
+  toast(`${$("time").value} に「${label}」を記録しました`);
+}
+
+$("levels").append(...LEVELS.map(([n, label]) =>
+  el("button", { type: "button", style: `background:var(--l${n})`, onclick: () => record(n, label) },
+    el("span", { className: "n", textContent: n }), label)));
+
+document.querySelectorAll("[data-shift]").forEach((b) =>
+  b.addEventListener("click", () => setTime(Number(b.dataset.shift))));
+
+$("route").addEventListener("change", (e) => { data.current = e.target.value; save(); render(); });
+$("add-route").addEventListener("click", () => {
+  const name = prompt("路線名（例: 田園都市線 上り）")?.trim();
+  if (!name) return;
+  const id = `r${Date.now()}`;
+  data.routes.push({ id, name: name.slice(0, 40) });
+  data.current = id;
+  save();
+  render();
+});
+$("del-route").addEventListener("click", () => {
+  const r = data.routes.find((x) => x.id === data.current);
+  const n = data.logs.filter((l) => l.route === r.id).length;
+  if (!confirm(`「${r.name}」と記録${n}件を削除しますか？`)) return;
+  data.routes = data.routes.filter((x) => x.id !== r.id);
+  data.logs = data.logs.filter((l) => l.route !== r.id);
+  save();
+  render();
+});
+
+// アプリに戻ってきた時に時刻を今に合わせる（朝開いたまま夕方に記録、を防ぐ）
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { setTime(); renderRecommend(); } });
+
+setTime();
+render();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

@@ -1,0 +1,12 @@
+{
+  "name": "すいてるログ",
+  "short_name": "すいてる",
+  "description": "自分の路線の混み具合を記録して、空いている時間帯を見つける",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7f5",
+  "theme_color": "#0f766e",
+  "lang": "ja",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
