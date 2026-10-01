@@ -53,6 +53,16 @@
     <div class="heat-wrap"><table id="heat"></table></div>
   </section>
 
+  <section aria-labelledby="h-memo">
+    <h2 id="h-memo">乗換メモ（号車・ドア位置）</h2>
+    <ul id="memo-list" class="memo-list"></ul>
+    <form id="memo-form" class="memo-form">
+      <input id="memo-station" placeholder="駅" maxlength="20" required aria-label="駅名">
+      <input id="memo-text" placeholder="5号車3ドア 階段が目の前" maxlength="100" required aria-label="メモ">
+      <button type="submit">追加</button>
+    </form>
+  </section>
+
   <section aria-labelledby="h-data">
     <h2 id="h-data">データ（機種変更用）</h2>
     <p class="note">記録はこの端末の中だけに保存されています。</p>

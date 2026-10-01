@@ -22,6 +22,7 @@ function load() {
   return { routes: [{ id: "r1", name: "いつもの路線" }], logs: [], current: "r1" };
 }
 const data = load();
+data.memos ??= []; // 乗換メモ追加前のデータ
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(data)); }
   catch { toast("保存できませんでした（プライベートモード？）"); }
@@ -118,7 +119,20 @@ function renderHeat() {
   table.replaceChildren(el("thead", {}, head), el("tbody", {}, ...rows));
 }
 
-const render = () => { renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); };
+function renderMemos() {
+  const memos = data.memos.filter((m) => m.route === data.current);
+  $("memo-list").replaceChildren(...(memos.length ? memos.map((m) => el("li", {},
+    el("strong", { textContent: m.station }),
+    el("span", { textContent: m.text }),
+    el("button", { type: "button", textContent: "削除", ariaLabel: `${m.station}のメモを削除`, onclick: () => {
+      data.memos = data.memos.filter((x) => x !== m);
+      save();
+      renderMemos();
+    } })))
+    : [el("li", { className: "empty", textContent: "例: 渋谷 → 5号車3ドア（半蔵門線の階段が目の前）" })]));
+}
+
+const render = () => { renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 function record(level, label) {
   const [h, m] = $("time").value.split(":").map(Number);
@@ -155,8 +169,20 @@ $("del-route").addEventListener("click", () => {
   if (!confirm(`「${r.name}」と記録${n}件を削除しますか？`)) return;
   data.routes = data.routes.filter((x) => x.id !== r.id);
   data.logs = data.logs.filter((l) => l.route !== r.id);
+  data.memos = data.memos.filter((m) => m.route !== r.id);
   save();
   render();
+});
+
+$("memo-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const station = $("memo-station").value.trim().slice(0, 20);
+  const text = $("memo-text").value.trim().slice(0, 100);
+  if (!station || !text) return;
+  data.memos.push({ route: data.current, station, text });
+  save();
+  renderMemos();
+  e.target.reset();
 });
 
 $("export").addEventListener("click", () => {

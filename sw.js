@@ -1,5 +1,5 @@
 // アプリシェルをキャッシュしてオフライン起動。ファイルを変えたら VERSION を上げる。
-const VERSION = "v4";
+const VERSION = "v5";
 const FILES = ["./", "index.html", "style.css", "app.js", "core.js", "manifest.webmanifest", "icon.svg"];
 
 self.addEventListener("install", (e) => {

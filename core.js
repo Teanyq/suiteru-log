@@ -65,5 +65,9 @@ export function parseBackup(text) {
   const logs = (Array.isArray(raw.logs) ? raw.logs : [])
     .filter((l) => ids.has(l?.route) && T_RE.test(l?.t) && Number.isInteger(l?.level) && l.level >= 1 && l.level <= 5)
     .map(({ route, t, level }) => ({ route, t, level }));
-  return { routes, logs, current: ids.has(raw.current) ? raw.current : routes[0].id };
+  const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const memos = (Array.isArray(raw.memos) ? raw.memos : [])
+    .map((m) => ({ route: m?.route, station: str(m?.station, 20), text: str(m?.text, 100) }))
+    .filter((m) => ids.has(m.route) && m.station && m.text);
+  return { routes, logs, memos, current: ids.has(raw.current) ? raw.current : routes[0].id };
 }

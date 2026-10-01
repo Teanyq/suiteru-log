@@ -70,3 +70,14 @@ test("recommend reports the usual (most-recorded) slot from the same pool", () =
   assert.ok(Math.abs(r.usual.avg - 13 / 3) < 1e-9);
   assert.equal(recommend([], "r1", THU).usual, null);
 });
+
+test("parseBackup keeps valid memos and tolerates old backups without them", () => {
+  const routes = [{ id: "r1", name: "A線" }];
+  const d = parseBackup(JSON.stringify({ routes, logs: [], memos: [
+    { route: "r1", station: " 渋谷 ", text: "5号車3ドア 半蔵門線へ" },
+    { route: "r9", station: "x", text: "orphan" },
+    { route: "r1", station: "", text: "no station" },
+  ] }));
+  assert.deepEqual(d.memos, [{ route: "r1", station: "渋谷", text: "5号車3ドア 半蔵門線へ" }]);
+  assert.deepEqual(parseBackup(JSON.stringify({ routes, logs: [] })).memos, []);
+});

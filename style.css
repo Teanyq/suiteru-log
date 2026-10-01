@@ -64,3 +64,12 @@ button { cursor: pointer; }
 .rec .tag, .rec .better { display: inline-block; margin-top: 2px; padding: 0 6px; border-radius: 6px; font-size: .75rem; font-weight: 600; }
 .rec .tag { border: 1px solid var(--line); }
 .rec .better { background: var(--l1); color: #fff; }
+.memo-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.memo-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: .9rem; }
+.memo-list li:first-child { border-top: 0; }
+.memo-list strong { flex: none; }
+.memo-list span { min-width: 0; overflow-wrap: anywhere; }
+.memo-list button { margin-left: auto; flex: none; border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 10px; font-size: .85rem; }
+.memo-form { display: grid; grid-template-columns: 5.5em 1fr auto; gap: 6px; }
+.memo-form input { min-width: 0; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); }
+.memo-form button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
