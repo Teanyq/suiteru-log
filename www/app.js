@@ -1,4 +1,5 @@
 import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam } from "./core.js";
+import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -14,25 +15,32 @@ const el = (tag, props = {}, ...kids) => {
   return e;
 };
 
-function load() {
+// アプリ版は OS に消されにくい Preferences に保存（store.js）。Web 版は localStorage
+const isNativeApp = !!window.Capacitor?.isNativePlatform?.();
+const store = createStore({
+  key: KEY,
+  prefs: isNativeApp ? window.Capacitor.Plugins.Preferences : null,
+  local: (() => { try { return localStorage; } catch { return null; } })(),
+});
+
+async function load() {
   try {
-    const d = JSON.parse(localStorage.getItem(KEY));
+    const d = JSON.parse(await store.load());
     if (d && Array.isArray(d.routes) && Array.isArray(d.logs)) return d;
   } catch {}
   return { routes: [{ id: "r1", name: "いつもの路線" }], logs: [], current: "r1" };
 }
-const data = load();
+const data = await load();
 data.memos ??= []; // 乗換メモ追加前のデータ
 // 保存失敗はトーストだと直後の「記録しました」等で上書きされて見えないので、成功するまで上部に出し続ける
 let saveFailed = false;
+// 呼んだ時点の内容で書く（JSON 化は同期）。結果は非同期で上部の警告に反映
+// ponytail: アプリ版の連続保存はネイティブ側の受付順に書かれる前提。順序が崩れる報告が出たら直列キューにする
 function save() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-    saveFailed = false;
-  } catch {
-    saveFailed = true;
-  }
-  renderBackup();
+  store.save(JSON.stringify(data)).then((ok) => {
+    saveFailed = !ok;
+    renderBackup();
+  });
 }
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -349,5 +357,4 @@ if (quick) {
 // ストレージ逼迫時にブラウザが勝手に消さないよう依頼（許可されなくても動作は同じ）
 navigator.storage?.persist?.().catch(() => {});
 // アプリ版（Capacitor）はファイルが同梱済みなので Service Worker は不要（iOS の capacitor:// では登録もできない）
-const isNativeApp = !!window.Capacitor?.isNativePlatform?.();
 if (!isNativeApp && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});

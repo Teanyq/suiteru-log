@@ -1,7 +1,7 @@
 // network-first: オンラインなら常に最新を返し、キャッシュはオフライン用の控え。
 // VERSION はキャッシュ名。ファイル変更のたびに上げる必要はない（キャッシュ形式を変える時だけ上げる）。
 const VERSION = "v15";
-const FILES = ["./", "index.html", "style.css", "app.js", "core.js", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-192.png", "icon-512.png"];
+const FILES = ["./", "index.html", "style.css", "app.js", "core.js", "store.js", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-192.png", "icon-512.png"];
 const SLOW_MS = 3000; // 電車内の弱い電波で待たせない上限
 
 self.addEventListener("install", (e) => {

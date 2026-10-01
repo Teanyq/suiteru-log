@@ -26,12 +26,13 @@ www/                    アプリ本体（Web 公開とスマホアプリ化で�
   style.css             見た目（ライト/ダーク、混雑色は白文字 4.9:1 以上）
   app.js                画面の描画とイベント（DOM・保存はここだけ）
   core.js               純粋関数（集計・おすすめ・予想・検証など）
+  store.js              保存先の切り替え（アプリ版は Preferences、Web 版は localStorage）
   sw.js                 Service Worker（network-first、3 秒でキャッシュに切替、オフライン対応）
   manifest.webmanifest  PWA 設定
   icon.svg, icon-*.png  アイコン（iOS 用 180px PNG を含む）
 android/, ios/           Capacitor が生成したネイティブプロジェクト（www/ は `npm run sync` でコピーされる）
 capacitor.config.json   アプリ ID（仮: app.suiteru.log）・アプリ名・webDir
-core.test.mjs           www/core.js のテスト
+core.test.mjs, store.test.mjs  www/core.js・www/store.js のテスト
 docs/                   仕様・ロードマップ・開発サイクル・公開手順・アプリ化計画
 ```
 

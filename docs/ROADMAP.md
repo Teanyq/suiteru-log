@@ -61,7 +61,7 @@
 ## Stage 14: アプリ化の土台（docs/APP_RELEASE.md の計画。最終目標はストアでのリリース）
 - [x] Web ファイルを `www/` に移す（Capacitor の webDir。テスト・起動手順・README・公開手順のパスも更新）
 - [x] Capacitor を導入（仮のアプリ ID。`npx cap add android` / `ios` で各プロジェクトを生成）
-- [ ] 保存先の切り替え: アプリでは端末の保存領域（@capacitor/preferences）、Web では従来どおり localStorage。既存データの移行つき
+- [x] 保存先の切り替え: アプリでは端末の保存領域（@capacitor/preferences）、Web では従来どおり localStorage（移行は不要と判断: アプリ版はまだ一度も配布していないので移すデータがない）
 
 ## Stage 15: ネイティブ機能（Web 版の限界を補う）
 - [ ] リマインドをローカル通知で（アプリでは .ics の代わりに平日の指定時刻に通知）
