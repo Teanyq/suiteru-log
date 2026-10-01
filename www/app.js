@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -311,11 +311,40 @@ function download(content, type, filename) {
 
 $("export").addEventListener("click", exportBackup);
 
-$("remind").addEventListener("click", () => {
+// アプリ版は端末のローカル通知、Web 版は定時通知ができないので .ics をカレンダーに入れてもらう
+const notif = isNativeApp ? window.Capacitor.Plugins.LocalNotifications : null;
+const cancelReminder = () => notif.cancel({ notifications: REMINDER_IDS.map((id) => ({ id })) });
+function renderReminder() {
+  if (!notif) return;
+  $("remind").textContent = "通知をセット";
+  $("remind-note").textContent = data.reminder ? `平日 ${data.reminder} に通知します。` : "平日のこの時刻に「今日の混み具合は？」と通知します。";
+  $("remind-off").hidden = !data.reminder;
+  if (data.reminder) $("remind-time").value = data.reminder;
+}
+$("remind").addEventListener("click", async () => {
   const t = $("remind-time").value;
   if (!t) return toast("通知する時刻を入れてください");
-  download(reminderIcs(t, new Date(), location.href.split("#")[0]), "text/calendar", "suiteru-reminder.ics");
+  if (!notif) return download(reminderIcs(t, new Date(), location.href.split("#")[0]), "text/calendar", "suiteru-reminder.ics");
+  try {
+    if ((await notif.requestPermissions()).display !== "granted") return toast("通知が許可されていません。端末の設定アプリで「すいてるログ」の通知を許可してください");
+    await cancelReminder();
+    await notif.schedule({ notifications: reminderNotifications(t) });
+  } catch {
+    return toast("通知をセットできませんでした");
+  }
+  data.reminder = t;
+  save();
+  renderReminder();
+  toast(`平日 ${t} に通知します`);
 });
+$("remind-off").addEventListener("click", async () => {
+  try { await cancelReminder(); } catch {}
+  delete data.reminder;
+  save();
+  renderReminder();
+  toast("通知を止めました");
+});
+renderReminder();
 $("import").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   e.target.value = "";

@@ -77,11 +77,12 @@
 
   <section aria-labelledby="h-remind">
     <h2 id="h-remind">記録リマインド</h2>
-    <p class="note">平日のこの時刻にカレンダーから通知します（予定ファイルを端末のカレンダーに追加）。</p>
+    <p class="note" id="remind-note">平日のこの時刻にカレンダーから通知します（予定ファイルを端末のカレンダーに追加）。</p>
     <div class="data-row">
       <input id="remind-time" type="time" aria-label="通知する時刻">
       <button id="remind" type="button">カレンダーに追加</button>
     </div>
+    <button id="remind-off" class="link-btn" type="button" hidden>通知を止める</button>
   </section>
 
   <section aria-labelledby="h-help">
