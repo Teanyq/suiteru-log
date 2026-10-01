@@ -29,6 +29,8 @@ www/                    アプリ本体（Web 公開とスマホアプリ化で�
   sw.js                 Service Worker（network-first、3 秒でキャッシュに切替、オフライン対応）
   manifest.webmanifest  PWA 設定
   icon.svg, icon-*.png  アイコン（iOS 用 180px PNG を含む）
+android/, ios/           Capacitor が生成したネイティブプロジェクト（www/ は `npm run sync` でコピーされる）
+capacitor.config.json   アプリ ID（仮: app.suiteru.log）・アプリ名・webDir
 core.test.mjs           www/core.js のテスト
 docs/                   仕様・ロードマップ・開発サイクル・公開手順・アプリ化計画
 ```

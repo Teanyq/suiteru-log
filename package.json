@@ -1,1 +1,16 @@
-{"type":"module","private":true,"scripts":{"test":"node --test core.test.mjs"}}
+{
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test core.test.mjs",
+    "sync": "cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

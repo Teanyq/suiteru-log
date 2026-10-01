@@ -37,3 +37,9 @@
 4. **プライバシーポリシーの URL**: 両ストアとも、データを集めないアプリでも掲載 URL が必須。→ 結局どこかに 1 ページ公開する必要がある（GitHub Pages 等）
 5. **アプリ ID**（例: `app.suiteru.log`）: 一度ストアに出すと変更できない。仮の ID で進め、提出前に確定してもらう
 6. **販売者名**: ストアに表示される開発者名（個人なら本名が表示されることがある）
+
+## 現状メモ
+
+- Capacitor 8.5（`@capacitor/core` `android` `ios`、CLI は devDependencies）。Web を直したら `npm run sync` でネイティブ側へコピー
+- 仮のアプリ ID: `app.suiteru.log`（`capacitor.config.json`）。提出前に確定が必要
+- `npm audit` で moderate 3 件: すべて開発用 CLI が Xcode プロジェクト編集に使う `xcode` パッケージ由来で、アプリには含まれない。`audit fix --force` は破壊的変更になるので見送り、CLI の更新で解消されるのを待つ

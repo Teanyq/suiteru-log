@@ -348,4 +348,6 @@ if (quick) {
 }
 // ストレージ逼迫時にブラウザが勝手に消さないよう依頼（許可されなくても動作は同じ）
 navigator.storage?.persist?.().catch(() => {});
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+// アプリ版（Capacitor）はファイルが同梱済みなので Service Worker は不要（iOS の capacitor:// では登録もできない）
+const isNativeApp = !!window.Capacitor?.isNativePlatform?.();
+if (!isNativeApp && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
