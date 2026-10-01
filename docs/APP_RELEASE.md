@@ -44,3 +44,4 @@
 - 仮のアプリ ID: `app.suiteru.log`（`capacitor.config.json`）。提出前に確定が必要
 - `npm audit` で moderate 3 件: すべて開発用 CLI が Xcode プロジェクト編集に使う `xcode` パッケージ由来で、アプリには含まれない。`audit fix --force` は破壊的変更になるので見送り、CLI の更新で解消されるのを待つ
 - 2026-10-02: Android ビルド環境を導入（ユーザー承認のうえ Android Studio 2026.1.4.7、SDK Platform 36 / Build-Tools 36・35、Temurin JDK 21。Android SDK ライセンスに同意）。`assembleDebug` で app-debug.apk（4.1MB、app.suiteru.log、targetSdk 36、www 同梱）を確認
+- 2026-10-02: エミュレータ（system-images;android-36;default;x86_64、WHPX 加速）で実動作を確認。保存は `shared_prefs/CapacitorStorage.xml` に入る。リマインドは設定時刻の約 1 分後に到着（正確アラームなしの想定どおり）。「止める」後に `getPending()` は配信済みの 1 件を返すが、OS のアラーム（`dumpsys alarm`）は 0 件で、プラグインが配信済み記録を残す仕様（ソースで確認）。ライセンスは Android SDK License のみに同意（一括同意で入った他 6 種の同意記録は削除済み）
