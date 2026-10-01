@@ -74,3 +74,8 @@ button { cursor: pointer; }
 .memo-form input { min-width: 0; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); }
 .memo-form button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 #remind-time { flex: 1; min-width: 0; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
+.help { margin: 0; padding-left: 1.3em; font-size: .9rem; display: grid; gap: 6px; }
+.faq { margin: 8px 0 0; font-size: .9rem; }
+.faq dt { font-weight: 600; margin-top: 10px; }
+.faq dd { margin: 2px 0 0; color: var(--muted); }
+details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padding: 6px 0; }

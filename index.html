@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#0f766e">
 <meta name="description" content="自分の路線の混み具合をワンタップで記録して、空いている時間帯を見つける通勤・通学アプリ">
 <title>すいてるログ</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="すいてるログ — 空いてる電車を、自分の記録で見つける">
+<meta property="og:description" content="混み具合をワンタップで記録するだけ。曜日×時間帯で空いている電車がわかる通勤・通学アプリ。登録不要・データは端末内だけ。">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -70,6 +75,26 @@
       <input id="remind-time" type="time" aria-label="通知する時刻">
       <button id="remind" type="button">カレンダーに追加</button>
     </div>
+  </section>
+
+  <section aria-labelledby="h-help">
+    <h2 id="h-help">使い方</h2>
+    <ol class="help">
+      <li>上の欄でいつもの路線を選ぶ（＋で追加。上りと下りは別の路線にすると精度が上がります）</li>
+      <li>電車に乗ったら混み具合のボタンを1回押す。乗る前に開いたら「-5分」などで時刻を合わせる</li>
+      <li>1〜2週間続けると「今日のおすすめ」に空いている時間帯が出ます</li>
+    </ol>
+    <details>
+      <summary>よくある質問</summary>
+      <dl class="faq">
+        <dt>データはどこに保存されますか？</dt>
+        <dd>この端末のブラウザの中だけです。サーバには送りません。ブラウザのデータを消すと記録も消えるので、「書き出す」でバックアップしてください。</dd>
+        <dt>ホーム画面に置けますか？</dt>
+        <dd>iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「アプリをインストール」。オフラインでも使えます。</dd>
+        <dt>他の人の混雑情報は見られますか？</dt>
+        <dd>いまは自分の記録だけです。自分の路線・自分の乗る位置の体感なので、平均的な混雑情報より当たります。</dd>
+      </dl>
+    </details>
   </section>
 
   <section aria-labelledby="h-data">
