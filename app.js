@@ -176,8 +176,11 @@ function renderStreak() {
   const msg = days ? `平日連続 ${days}日${todayDone ? "" : "（今日はまだ）"}` : "今日の1回目を記録しよう";
   $("streak").replaceChildren(
     el("span", { className: "streak-n", textContent: msg }),
-    el("span", { className: "streak-dots", ariaLabel: "直近7日の記録" }, ...last7.map((d) =>
-      el("span", { className: `sd${d.has ? " on" : ""}${d.weekend ? " we" : ""}`, title: DOW[d.dow], textContent: DOW[d.dow] }))));
+    el("span", { className: "streak-dots", role: "group", ariaLabel: "直近7日の記録" }, ...last7.map((d) => {
+      // 記録の有無は色だけでは読み上げで伝わらないのでラベルで言う
+      const label = `${DOW[d.dow]}曜 ${d.has ? "記録あり" : "記録なし"}`;
+      return el("span", { className: `sd${d.has ? " on" : ""}${d.weekend ? " we" : ""}`, role: "img", ariaLabel: label, title: label, textContent: DOW[d.dow] });
+    })));
 }
 
 const todayKey = () => localIso(new Date()).slice(0, 10);
