@@ -21,21 +21,22 @@
 ## ファイル構成
 
 ```
-index.html            画面（1 ページ）
-style.css             見た目（ライト/ダーク、混雑色は白文字 4.9:1 以上）
-app.js                画面の描画とイベント（DOM・localStorage はここだけ）
-core.js               純粋関数（集計・おすすめ・予想・検証など）
-core.test.mjs         core.js のテスト
-sw.js                 Service Worker（network-first、3 秒でキャッシュに切替、オフライン対応）
-manifest.webmanifest  PWA 設定
-icon.svg, icon-*.png  アイコン（iOS 用 180px PNG を含む）
-docs/                 仕様・ロードマップ・開発サイクル・公開手順
+www/                    アプリ本体（Web 公開とスマホアプリ化で共通。Capacitor の webDir）
+  index.html            画面（1 ページ）
+  style.css             見た目（ライト/ダーク、混雑色は白文字 4.9:1 以上）
+  app.js                画面の描画とイベント（DOM・保存はここだけ）
+  core.js               純粋関数（集計・おすすめ・予想・検証など）
+  sw.js                 Service Worker（network-first、3 秒でキャッシュに切替、オフライン対応）
+  manifest.webmanifest  PWA 設定
+  icon.svg, icon-*.png  アイコン（iOS 用 180px PNG を含む）
+core.test.mjs           www/core.js のテスト
+docs/                   仕様・ロードマップ・開発サイクル・公開手順・アプリ化計画
 ```
 
 ## 動かす・テストする
 
 ```bash
-python -m http.server 5180
+python -m http.server 5180 --directory www
 ```
 
 http://localhost:5180 を開く（ES modules と Service Worker のため file:// では動かない）。

@@ -2,19 +2,20 @@
 
 **外部公開はユーザーの承認後にのみ行う。** 承認時に公開先（A / B）と公開範囲（リポジトリを公開してよいか）を確認する。
 
-静的ファイルだけなので、どちらもビルド設定は不要。`docs/` と `core.test.mjs` `package.json` は公開されても害はない（中身は仕様とテスト）。
+公開するのは `www/` フォルダだけ（静的ファイルのみ、ビルド不要）。
 
 ## A. GitHub Pages（おすすめ: 無料・HTTPS・`git push` だけで更新）
 
 前提: `gh` CLI でログイン済み。GitHub Pages を無料で使うにはリポジトリが public である必要がある（＝ソースも公開される）。
 
-```bash
-cd C:/commute-pwa
-gh repo create suiteru-log --public --source . --push
-gh api -X POST repos/{owner}/suiteru-log/pages -f "source[branch]=master" -f "source[path]=/"
-```
+GitHub Pages はリポジトリ直下か `docs/` しか直接公開できないので、`www/` は GitHub Actions で公開する。
 
-- ブランチ名は `git branch --show-current` で確認して合わせる
+1. `.github/workflows/pages.yml` を追加（`actions/upload-pages-artifact` の `path: www` → `actions/deploy-pages`）
+2. 作成と push:
+   ```bash
+   gh repo create suiteru-log --public --source . --push
+   ```
+3. リポジトリの Settings → Pages → Source を「GitHub Actions」にする
 - 公開 URL は `https://<owner>.github.io/suiteru-log/`（サブパス）。コード上は全て相対パス（`./`、`sw.js`、`manifest` の `start_url: "./"`。絶対パスがないことは grep で確認済み）なのでそのまま動く見込み。**サブパスでの実動作は未検証**なので、公開直後に下の「共通」チェックで確認する
 - 反映まで 1〜2 分
 
@@ -22,7 +23,7 @@ gh api -X POST repos/{owner}/suiteru-log/pages -f "source[branch]=master" -f "so
 
 1. GitHub に **private** リポジトリを作って push
 2. Render ダッシュボード → New → Static Site → リポジトリを選択
-3. Build Command: 空 / Publish Directory: `.`
+3. Build Command: 空 / Publish Directory: `www`
 4. 公開 URL は `https://<name>.onrender.com/`（ルート直下）
 
 ## 公開 URL が決まったら（同じ日にやる）

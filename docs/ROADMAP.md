@@ -59,7 +59,7 @@
 - [x] 直近7日ドットが読み上げで「金 土 日…」としか聞こえず記録の有無が色だけ → 各日に「記録あり/なし」。aria-label が無視される div/span（遅延・雨の欄、7日ドット）に role="group"
 
 ## Stage 14: アプリ化の土台（docs/APP_RELEASE.md の計画。最終目標はストアでのリリース）
-- [ ] Web ファイルを `www/` に移す（Capacitor の webDir。テスト・起動手順・README・公開手順のパスも更新）
+- [x] Web ファイルを `www/` に移す（Capacitor の webDir。テスト・起動手順・README・公開手順のパスも更新）
 - [ ] Capacitor を導入（仮のアプリ ID。`npx cap add android` / `ios` で各プロジェクトを生成）
 - [ ] 保存先の切り替え: アプリでは端末の保存領域（@capacitor/preferences）、Web では従来どおり localStorage。既存データの移行つき
 
