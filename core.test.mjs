@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent } from "./core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup } from "./core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -157,4 +157,13 @@ test("recent keeps only the last 90 days", () => {
   const now = new Date("2026-10-01T08:00:00");
   const logs = [log("2026-07-03T07:40:00", 3), log("2026-07-02T23:59:00", 3), log("2026-10-01T07:40:00", 3)];
   assert.deepEqual(recent(logs, now).map((l) => l.t.slice(0, 10)), ["2026-07-03", "2026-10-01"]);
+});
+
+test("needsBackup nudges only with enough data and no export in 30 days", () => {
+  const now = new Date("2026-10-01T08:00:00");
+  const logs = (n) => Array.from({ length: n }, () => log("2026-09-30T07:40:00", 3));
+  assert.equal(needsBackup({ logs: logs(19) }, now), false); // 少ないうちは促さない
+  assert.equal(needsBackup({ logs: logs(20) }, now), true); // 一度も書き出していない
+  assert.equal(needsBackup({ logs: logs(20), lastExport: "2026-09-02" }, now), false);
+  assert.equal(needsBackup({ logs: logs(20), lastExport: "2026-08-31" }, now), true);
 });

@@ -173,3 +173,12 @@ export function recent(logs, now, days = 90) {
   const cutoff = `${dayKey(d)}T00:00:00`;
   return logs.filter((l) => l.t >= cutoff);
 }
+
+// ブラウザのデータ消去に備え、記録がたまったのに 30 日以上書き出していなければ促す
+export function needsBackup({ logs, lastExport }, now, minLogs = 20, days = 30) {
+  if (logs.length < minLogs) return false;
+  if (!lastExport) return true;
+  const d = new Date(now);
+  d.setDate(d.getDate() - days);
+  return lastExport < dayKey(d);
+}

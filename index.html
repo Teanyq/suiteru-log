@@ -28,6 +28,7 @@
 </header>
 
 <main>
+  <p id="backup-nudge" class="nudge" hidden></p>
   <section aria-labelledby="h-rec">
     <h2 id="h-rec">いまの混み具合</h2>
     <div id="streak" class="streak"></div>
@@ -102,7 +103,7 @@
 
   <section aria-labelledby="h-data">
     <h2 id="h-data">データ（機種変更用）</h2>
-    <p class="note">記録はこの端末の中だけに保存されています。</p>
+    <p class="note">記録はこの端末の中だけに保存されています。<span id="last-export"></span></p>
     <div class="data-row">
       <button id="export" type="button">書き出す</button>
       <label class="file-btn">読み込む<input id="import" type="file" accept="application/json,.json"></label>

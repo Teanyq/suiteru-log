@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -170,7 +170,26 @@ function renderStreak() {
       el("span", { className: `sd${d.has ? " on" : ""}${d.weekend ? " we" : ""}`, title: DOW[d.dow], textContent: DOW[d.dow] }))));
 }
 
-const render = () => { renderStreak(); renderForecast(); renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+const todayKey = () => localIso(new Date()).slice(0, 10);
+
+function exportBackup() {
+  data.lastExport = todayKey();
+  save();
+  download(JSON.stringify(data), "application/json", `suiteru-${data.lastExport.replaceAll("-", "")}.json`);
+  render();
+}
+
+function renderBackup() {
+  $("last-export").textContent = data.lastExport ? `最後の書き出し: ${data.lastExport}` : "まだ書き出していません。";
+  const nudge = $("backup-nudge");
+  nudge.hidden = !needsBackup(data, new Date());
+  if (nudge.hidden) return;
+  nudge.replaceChildren(
+    el("span", { textContent: `記録が${data.logs.length}件たまりました。ブラウザのデータ削除や機種変更に備えて、書き出しておきましょう。` }),
+    el("button", { type: "button", textContent: "いま書き出す", onclick: exportBackup }));
+}
+
+const render = () => { renderBackup(); renderStreak(); renderForecast(); renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 function record(level, label) {
   const d = timeInput();
@@ -244,10 +263,7 @@ function download(content, type, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-$("export").addEventListener("click", () => {
-  const d = new Date();
-  download(JSON.stringify(data), "application/json", `suiteru-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json`);
-});
+$("export").addEventListener("click", exportBackup);
 
 $("remind").addEventListener("click", () => {
   const t = $("remind-time").value;
@@ -262,7 +278,7 @@ $("import").addEventListener("change", async (e) => {
   try { next = parseBackup(await file.text()); }
   catch { return toast("すいてるログのバックアップではないようです"); }
   if (!confirm(`路線${next.routes.length}件・記録${next.logs.length}件を読み込みます。今のデータは置き換わります。`)) return;
-  Object.assign(data, next);
+  Object.assign(data, next, { lastExport: todayKey() }); // 読み込んだファイル自体がバックアップ
   save();
   render();
   toast("読み込みました");
@@ -284,4 +300,6 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) { au
 autoRoute();
 setTime();
 render();
+// ストレージ逼迫時にブラウザが勝手に消さないよう依頼（許可されなくても動作は同じ）
+navigator.storage?.persist?.().catch(() => {});
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
