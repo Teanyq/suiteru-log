@@ -14,7 +14,9 @@ body {
   padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom));
   max-width: 560px; margin-inline: auto;
 }
-h1 { font-size: 1.25rem; margin: 16px 0 8px; color: var(--accent); }
+h1 { font-size: 1.25rem; margin: 16px 0 2px; color: var(--accent); }
+.tagline { margin: 0 0 10px; color: var(--muted); font-size: .85rem; }
+.tagline a { color: var(--accent); margin-left: 4px; }
 h2 { font-size: 1rem; margin: 0 0 12px; }
 section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-top: 12px; }
 button, select, input { font: inherit; color: inherit; }
