@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup } from "./core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs } from "./core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -80,4 +80,15 @@ test("parseBackup keeps valid memos and tolerates old backups without them", () 
   ] }));
   assert.deepEqual(d.memos, [{ route: "r1", station: "渋谷", text: "5号車3ドア 半蔵門線へ" }]);
   assert.deepEqual(parseBackup(JSON.stringify({ routes, logs: [] })).memos, []);
+});
+
+test("reminderIcs builds a weekday recurring event with an alarm at the given time", () => {
+  const ics = reminderIcs("07:40", new Date("2026-10-01T18:00:00"), "https://example.test/");
+  const lines = ics.split("\r\n");
+  assert.equal(lines[0], "BEGIN:VCALENDAR");
+  assert.ok(lines.includes("DTSTART:20261002T074000")); // 18時なので翌日から
+  assert.ok(lines.includes("RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"));
+  assert.ok(lines.includes("TRIGGER:PT0M"));
+  assert.ok(lines.includes("URL:https://example.test/"));
+  assert.ok(reminderIcs("19:00", new Date("2026-10-01T18:00:00"), "u").includes("DTSTART:20261001T190000"));
 });

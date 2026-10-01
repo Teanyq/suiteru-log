@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -95,6 +95,7 @@ function renderRecommend() {
   const note = fallback
     ? `${DOW[today]}曜のデータがまだ無いので、${today === 0 || today === 6 ? "休日" : "平日"}全体から出しています。`
     : `${DOW[today]}曜の記録から、混雑が少ない順に表示しています。`;
+  if (!$("remind-time").value) $("remind-time").value = usual.label;
   const usualLine = el("p", { className: "note", textContent: `いつもの時刻: ${usual.label}台（平均 ${usual.avg.toFixed(1)}・${usual.n}回）` });
   box.replaceChildren(list, usualLine, el("p", { className: "note", textContent: note }));
 }
@@ -185,11 +186,21 @@ $("memo-form").addEventListener("submit", (e) => {
   e.target.reset();
 });
 
-$("export").addEventListener("click", () => {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
-  const d = new Date();
-  el("a", { href: url, download: `suiteru-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json` }).click();
+function download(content, type, filename) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  el("a", { href: url, download: filename }).click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+$("export").addEventListener("click", () => {
+  const d = new Date();
+  download(JSON.stringify(data), "application/json", `suiteru-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json`);
+});
+
+$("remind").addEventListener("click", () => {
+  const t = $("remind-time").value;
+  if (!t) return toast("通知する時刻を入れてください");
+  download(reminderIcs(t, new Date(), location.href.split("#")[0]), "text/calendar", "suiteru-reminder.ics");
 });
 $("import").addEventListener("change", async (e) => {
   const file = e.target.files[0];

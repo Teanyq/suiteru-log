@@ -73,3 +73,4 @@ button { cursor: pointer; }
 .memo-form { display: grid; grid-template-columns: 5.5em 1fr auto; gap: 6px; }
 .memo-form input { min-width: 0; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); }
 .memo-form button { padding: 8px 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+#remind-time { flex: 1; min-width: 0; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }

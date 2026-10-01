@@ -71,3 +71,28 @@ export function parseBackup(text) {
     .filter((m) => ids.has(m.route) && m.station && m.text);
   return { routes, logs, memos, current: ids.has(raw.current) ? raw.current : routes[0].id };
 }
+
+// 平日の指定時刻に通知するカレンダー予定（.ics）。PWA単体では定時通知できないので端末のカレンダーに任せる。
+// DTSTART は TZ なし（端末のローカル時刻として扱われる）
+export function reminderIcs(hhmm, now, url) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const start = new Date(now);
+  start.setHours(h, m, 0, 0);
+  if (start <= now) start.setDate(start.getDate() + 1);
+  const p = (n) => String(n).padStart(2, "0");
+  const ymd = (d) => `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+  const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  return [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//suiteru-log//JA",
+    "BEGIN:VEVENT",
+    `UID:suiteru-reminder-${ymd(start)}@suiteru`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART:${ymd(start)}T${p(h)}${p(m)}00`,
+    "DURATION:PT5M",
+    "RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+    "SUMMARY:今日の電車の混み具合は？（すいてるログ）",
+    `URL:${url}`,
+    "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:混み具合を記録", "TRIGGER:PT0M", "END:VALARM",
+    "END:VEVENT", "END:VCALENDAR", "",
+  ].join("\r\n");
+}
