@@ -44,7 +44,7 @@
 
 ## Stage 10: 2回目のコード見直し（2026-10-01、Stage 6〜9 の追加分）
 - [x] 保存失敗が「記録しました」の表示で上書きされて利用者に見えないバグを修正
-- [ ] iOS のホーム画面アイコン: apple-touch-icon を PNG(180px) に（iOS は SVG 非対応）、manifest にも PNG 192/512
+- [x] iOS のホーム画面アイコン: apple-touch-icon を PNG(180px) に（iOS は SVG 非対応）、manifest にも PNG 192/512
 - [ ] 小修正: render の順序（路線を確定してから各表示）、renderHistory の変数名が import の recent() と衝突
 
 ## 不採用メモ
