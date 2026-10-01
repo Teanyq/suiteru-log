@@ -26,7 +26,7 @@ export function aggregate(logs, routeId) {
   return agg;
 }
 
-const isWeekend = (dow) => dow === 0 || dow === 6;
+export const isWeekend = (dow) => dow === 0 || dow === 6;
 
 // その曜日にデータが無ければ、同じ種別（平日/休日）の全曜日で代替する
 export function recommend(logs, routeId, dow, limit = 3) {
@@ -148,4 +148,14 @@ export function routeForTime(logs, now, windowMin = 60) {
   let best = null;
   for (const [route, n] of count) if (!best || n > count.get(best)) best = route;
   return best;
+}
+
+// <input type=time> の "HH:MM" を「直近の過去のその時刻」にする。0時過ぎに -15分 で 23:50 を選んだら前日扱い
+export function resolveTime(hhmm, now) {
+  const [h, m] = String(hhmm).split(":").map(Number);
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return null;
+  const d = new Date(now);
+  d.setHours(h, m, 0, 0);
+  if (d - now > 60000) d.setDate(d.getDate() - 1);
+  return d;
 }

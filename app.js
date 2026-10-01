@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -38,18 +38,21 @@ function setTime(shiftMin = 0) {
   renderForecast();
 }
 
+const timeInput = () => resolveTime($("time").value, new Date());
+const dayType = (dow) => (isWeekend(dow) ? "休日" : "平日");
+
 function renderForecast() {
-  const [h, m] = $("time").value.split(":").map(Number);
+  const d = timeInput();
   const box = $("forecast");
-  if (Number.isNaN(h)) return box.replaceChildren();
-  const slot = Math.floor((h * 60 + m) / 15);
-  const dow = new Date().getDay();
+  if (!d) return box.replaceChildren();
+  const slot = slotOf(localIso(d));
+  const dow = d.getDay();
   const f = forecast(data.logs, data.current, dow, slot);
   if (f.avg === null) {
     box.replaceChildren(`${slotLabel(slot)}台の予想: あと${f.remaining}回記録すると出ます`);
     return;
   }
-  const scope = f.scope === "day" ? `${DOW[dow]}曜` : dow === 0 || dow === 6 ? "休日" : "平日";
+  const scope = f.scope === "day" ? `${DOW[dow]}曜` : dayType(dow);
   box.replaceChildren(
     el("span", { className: "dot", style: `background:${color(f.avg)}` }),
     `${slotLabel(slot)}台の予想: `,
@@ -113,7 +116,7 @@ function renderRecommend() {
           : usual.avg - s.avg >= 0.5 ? [el("br"), el("span", { className: "better", textContent: `いつもより ${(usual.avg - s.avg).toFixed(1)} 空き` })]
           : [])))));
   const note = fallback
-    ? `${DOW[today]}曜のデータがまだ無いので、${today === 0 || today === 6 ? "休日" : "平日"}全体から出しています。`
+    ? `${DOW[today]}曜のデータがまだ無いので、${dayType(today)}全体から出しています。`
     : `${DOW[today]}曜の記録から、混雑が少ない順に表示しています。`;
   if (!$("remind-time").value) $("remind-time").value = usual.label;
   const usualLine = el("p", { className: "note", textContent: `いつもの時刻: ${usual.label}台（平均 ${usual.avg.toFixed(1)}・${usual.n}回）` });
@@ -165,10 +168,8 @@ function renderStreak() {
 const render = () => { renderStreak(); renderForecast(); renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 function record(level, label) {
-  const [h, m] = $("time").value.split(":").map(Number);
-  if (Number.isNaN(h)) return toast("時刻を入れてください");
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
+  const d = timeInput();
+  if (!d) return toast("時刻を入れてください");
   const log = { route: data.current, t: localIso(d), level };
   data.logs.push(log);
   save();
@@ -246,7 +247,6 @@ $("import").addEventListener("change", async (e) => {
   toast("読み込みました");
 });
 
-// アプリに戻ってきた時に時刻を今に合わせる（朝開いたまま夕方に記録、を防ぐ）
 // 開いた時刻にいちばん使っている路線へ切り替える（朝は上り、夕方は下り、など）
 function autoRoute() {
   const id = routeForTime(data.logs, new Date());
@@ -257,6 +257,7 @@ function autoRoute() {
   toast(`時間帯に合わせて「${route.name}」にしました`);
 }
 
+// アプリに戻ってきた時に路線と時刻を今に合わせる（朝開いたまま夕方に記録、を防ぐ）
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { autoRoute(); setTime(); render(); } });
 
 autoRoute();

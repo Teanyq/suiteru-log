@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime } from "./core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime } from "./core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -125,4 +125,12 @@ test("routeForTime picks the route most recorded near this time of day", () => {
   assert.equal(routeForTime(logs, new Date("2026-10-01T07:50:00")), "up");
   assert.equal(routeForTime(logs, new Date("2026-10-01T18:10:00")), "down");
   assert.equal(routeForTime(logs, new Date("2026-10-01T13:00:00")), null);
+});
+
+test("resolveTime maps HH:MM to the most recent past occurrence", () => {
+  const now = new Date("2026-10-02T00:05:00");
+  assert.equal(resolveTime("23:50", now).getDate(), 1); // 0時過ぎの -15分 は前日
+  assert.equal(resolveTime("00:05", now).getDate(), 2);
+  assert.equal(resolveTime("07:40", new Date("2026-10-02T08:00:00")).getDate(), 2);
+  assert.equal(resolveTime("", now), null);
 });
