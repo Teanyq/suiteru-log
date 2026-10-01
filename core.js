@@ -13,7 +13,7 @@ export const slotLabel = (slot) => {
 };
 
 // 遅延・雨など平常でない記録につける印。集計（おすすめ・予想・ヒートマップ）からは外す
-export const TAGS = { delay: "遅延", rain: "雨" };
+export const TAGS = { delay: "遅延", rain: "雨", period: "試験・休暇" };
 
 // key "曜日-枠" -> { sum, n }（平常時の記録のみ）
 export function aggregate(logs, routeId) {

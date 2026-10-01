@@ -181,3 +181,12 @@ test("recommend falls back to the day-type pool when the weekday has too little 
   assert.equal(r.fallback, true); // 木曜は1件だけ → 平日全体で比べる
   assert.equal(r.total, 4);
 });
+
+test("period (試験・休暇) tag is a known tag and excluded from aggregation", () => {
+  const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }], logs: [
+    { route: "r1", t: "2026-10-01T07:40:00", level: 1, tags: ["period"] },
+    { route: "r1", t: "2026-10-01T07:41:00", level: 4 },
+  ] }));
+  assert.deepEqual(d.logs[0].tags, ["period"]);
+  assert.deepEqual(aggregate(d.logs, "r1").get(`${THU}-30`), { sum: 4, n: 1 });
+});

@@ -198,7 +198,8 @@ function record(level, label) {
   const d = timeInput();
   if (!d) return toast("時刻を入れてください");
   const log = { route: data.current, t: localIso(d), level };
-  if (activeTags.size) log.tags = [...activeTags];
+  const tags = [...activeTags, ...(data.periodMode ? ["period"] : [])];
+  if (tags.length) log.tags = tags;
   data.logs.push(log);
   save();
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
@@ -213,12 +214,20 @@ function setTags(list) {
   list.forEach((x) => activeTags.add(x));
   for (const b of $("tags").querySelectorAll("button")) b.ariaPressed = String(activeTags.has(b.dataset.tag));
 }
-$("tags").append(...Object.entries(TAGS).map(([key, label]) => {
+$("tags").append(...["delay", "rain"].map((key) => [key, TAGS[key]]).map(([key, label]) => {
   const b = el("button", { type: "button", textContent: label, ariaPressed: "false" });
   b.dataset.tag = key;
   b.onclick = () => setTags(activeTags.has(key) ? [...activeTags].filter((x) => x !== key) : [...activeTags, key]);
   return b;
 }), el("span", { className: "tags-hint", textContent: "← いつもと違う日は印をつけて記録" }));
+
+// 試験・休暇モードは遅延・雨と違い、オフにするまで続く
+$("period").checked = !!data.periodMode;
+$("period").addEventListener("change", (e) => {
+  data.periodMode = e.target.checked;
+  save();
+  toast(data.periodMode ? "試験・休暇モード: この間の記録は集計に入れません" : "通常の記録に戻しました");
+});
 
 $("levels").append(...LEVELS.map(([n, label]) =>
   el("button", { type: "button", style: `background:var(--l${n})`, onclick: () => record(n, label) },
