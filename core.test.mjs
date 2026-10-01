@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend } from "./core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup } from "./core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -36,4 +36,25 @@ test("recommend pools same day-type when the day has no data", () => {
   assert.equal(fri.fallback, true);
   assert.equal(fri.top[0].label, "07:30");
   assert.equal(recommend(logs, "r1", SAT).top.length, 0); // 平日データで土曜を推さない
+});
+
+test("parseBackup keeps valid data and drops bad rows", () => {
+  const d = parseBackup(JSON.stringify({
+    routes: [{ id: "r1", name: "A線" }, { id: 5, name: "bad" }, { id: "r2", name: "x".repeat(99) }],
+    logs: [
+      { route: "r1", t: "2026-10-01T07:42:00", level: 3 },
+      { route: "r1", t: "2026-10-01T07:42:00", level: 9 },
+      { route: "nope", t: "2026-10-01T07:42:00", level: 2 },
+      { route: "r1", t: "<img>", level: 2 },
+    ],
+  }));
+  assert.deepEqual(d.routes.map((r) => r.id), ["r1", "r2"]);
+  assert.equal(d.routes[1].name.length, 40);
+  assert.equal(d.logs.length, 1);
+  assert.equal(d.current, "r1");
+});
+
+test("parseBackup rejects non-backup input", () => {
+  assert.throws(() => parseBackup("not json"));
+  assert.throws(() => parseBackup(JSON.stringify({ routes: [], logs: [] })));
 });

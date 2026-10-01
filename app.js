@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -152,6 +152,26 @@ $("del-route").addEventListener("click", () => {
   data.logs = data.logs.filter((l) => l.route !== r.id);
   save();
   render();
+});
+
+$("export").addEventListener("click", () => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
+  const d = new Date();
+  el("a", { href: url, download: `suiteru-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json` }).click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+$("import").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  let next;
+  try { next = parseBackup(await file.text()); }
+  catch { return toast("すいてるログのバックアップではないようです"); }
+  if (!confirm(`路線${next.routes.length}件・記録${next.logs.length}件を読み込みます。今のデータは置き換わります。`)) return;
+  Object.assign(data, next);
+  save();
+  render();
+  toast("読み込みました");
 });
 
 // アプリに戻ってきた時に時刻を今に合わせる（朝開いたまま夕方に記録、を防ぐ）

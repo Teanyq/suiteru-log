@@ -50,3 +50,19 @@ export function recommend(logs, routeId, dow, limit = 3) {
   if (top.length) return { top, fallback: false };
   return { top: pick((d) => isWeekend(d) === isWeekend(dow)), fallback: true };
 }
+
+const T_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+
+// 外部ファイル（バックアップ）を信用しない: 形の合わない行は捨て、路線が1つも無ければ拒否
+export function parseBackup(text) {
+  const raw = JSON.parse(text);
+  const routes = (Array.isArray(raw?.routes) ? raw.routes : [])
+    .filter((r) => typeof r?.id === "string" && typeof r?.name === "string" && r.name.trim())
+    .map((r) => ({ id: r.id, name: r.name.trim().slice(0, 40) }));
+  if (!routes.length) throw new Error("路線データがありません");
+  const ids = new Set(routes.map((r) => r.id));
+  const logs = (Array.isArray(raw.logs) ? raw.logs : [])
+    .filter((l) => ids.has(l?.route) && T_RE.test(l?.t) && Number.isInteger(l?.level) && l.level >= 1 && l.level <= 5)
+    .map(({ route, t, level }) => ({ route, t, level }));
+  return { routes, logs, current: ids.has(raw.current) ? raw.current : routes[0].id };
+}
