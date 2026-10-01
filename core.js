@@ -135,3 +135,17 @@ export function forecast(logs, routeId, dow, slot, need = 3) {
   if (n >= need) return { avg: sum / n, n, scope: "type" };
   return { avg: null, n, remaining: need - n };
 }
+
+// 今の時刻 ±windowMin に最も多く記録している路線（曜日は問わない）。近くに記録が無ければ null
+// ponytail: 0時をまたぐ窓は見ない（終電帯の通勤が出てきたら分を mod 1440 で比較）
+export function routeForTime(logs, now, windowMin = 60) {
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const count = new Map();
+  for (const l of logs) {
+    const d = new Date(l.t);
+    if (Math.abs(d.getHours() * 60 + d.getMinutes() - mins) <= windowMin) count.set(l.route, (count.get(l.route) ?? 0) + 1);
+  }
+  let best = null;
+  for (const [route, n] of count) if (!best || n > count.get(best)) best = route;
+  return best;
+}

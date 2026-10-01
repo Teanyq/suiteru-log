@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast } from "./core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime } from "./core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -115,4 +115,14 @@ test("forecast uses the weekday when it has enough data, else the day-type, else
   assert.deepEqual([b.avg, b.n, b.scope], [13 / 4, 4, "type"]);
   const c = forecast(wed, "r1", FRI, 30);
   assert.deepEqual([c.avg, c.remaining], [null, 2]);
+});
+
+test("routeForTime picks the route most recorded near this time of day", () => {
+  const logs = [
+    log("2026-09-29T07:40:00", 3, "up"), log("2026-09-30T07:45:00", 3, "up"), log("2026-09-30T08:20:00", 3, "down"),
+    log("2026-09-29T18:30:00", 3, "down"), log("2026-09-30T18:40:00", 3, "down"),
+  ];
+  assert.equal(routeForTime(logs, new Date("2026-10-01T07:50:00")), "up");
+  assert.equal(routeForTime(logs, new Date("2026-10-01T18:10:00")), "down");
+  assert.equal(routeForTime(logs, new Date("2026-10-01T13:00:00")), null);
 });

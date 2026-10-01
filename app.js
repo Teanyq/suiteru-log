@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime } from "./core.js";
 
 const KEY = "suiteru.v1";
 const LEVELS = [
@@ -247,8 +247,19 @@ $("import").addEventListener("change", async (e) => {
 });
 
 // アプリに戻ってきた時に時刻を今に合わせる（朝開いたまま夕方に記録、を防ぐ）
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { setTime(); renderRecommend(); } });
+// 開いた時刻にいちばん使っている路線へ切り替える（朝は上り、夕方は下り、など）
+function autoRoute() {
+  const id = routeForTime(data.logs, new Date());
+  const route = data.routes.find((r) => r.id === id);
+  if (!route || id === data.current) return;
+  data.current = id;
+  save();
+  toast(`時間帯に合わせて「${route.name}」にしました`);
+}
 
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { autoRoute(); setTime(); render(); } });
+
+autoRoute();
 setTime();
 render();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
