@@ -37,7 +37,12 @@ button { cursor: pointer; }
 }
 .levels button:active { transform: scale(.98); }
 .levels .n { font-size: 1.4rem; width: 1.5em; text-align: center; }
-#toast { min-height: 1.5em; margin: 10px 0 0; color: var(--muted); font-size: .9rem; }
+#toast { min-height: 1.5em; margin: 10px 0 0; color: var(--muted); font-size: .9rem; display: flex; align-items: center; gap: 8px; }
+#toast button, #history-list button { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 10px; font-size: .85rem; }
+#history summary { cursor: pointer; color: var(--muted); font-size: .9rem; padding: 6px 0; }
+#history-list { list-style: none; margin: 0; padding: 0; }
+#history-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: .9rem; font-variant-numeric: tabular-nums; }
+#history-list button { margin-left: auto; }
 
 .rec { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .rec li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }

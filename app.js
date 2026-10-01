@@ -37,10 +37,33 @@ function setTime(shiftMin = 0) {
 }
 
 let toastTimer;
-function toast(msg) {
-  $("toast").textContent = msg;
+function toast(msg, undo) {
+  const kids = [msg];
+  if (undo) kids.push(el("button", { type: "button", textContent: "取り消す", onclick: () => { undo(); toast("取り消しました"); } }));
+  $("toast").replaceChildren(...kids);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => ($("toast").textContent = ""), 4000);
+  toastTimer = setTimeout(() => $("toast").replaceChildren(), undo ? 8000 : 4000);
+}
+
+function removeLog(log) {
+  data.logs = data.logs.filter((l) => l !== log);
+  save();
+  render();
+}
+
+const fmt = (t) => {
+  const d = new Date(t);
+  return `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+function renderHistory() {
+  const recent = data.logs.filter((l) => l.route === data.current)
+    .sort((a, b) => b.t.localeCompare(a.t)).slice(0, 10);
+  $("history-list").replaceChildren(...(recent.length ? recent.map((l) => el("li", {},
+    el("span", { className: "dot", style: `background:var(--l${l.level})` }),
+    `${fmt(l.t)}  ${LEVELS[l.level - 1][1]}`,
+    el("button", { type: "button", textContent: "削除", ariaLabel: `${fmt(l.t)}の記録を削除`, onclick: () => removeLog(l) })))
+    : [el("li", { className: "empty", textContent: "まだ記録がありません" })]));
 }
 
 function renderRoutes() {
@@ -90,17 +113,18 @@ function renderHeat() {
   table.replaceChildren(el("thead", {}, head), el("tbody", {}, ...rows));
 }
 
-const render = () => { renderRoutes(); renderRecommend(); renderHeat(); };
+const render = () => { renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); };
 
 function record(level, label) {
   const [h, m] = $("time").value.split(":").map(Number);
   if (Number.isNaN(h)) return toast("時刻を入れてください");
   const d = new Date();
   d.setHours(h, m, 0, 0);
-  data.logs.push({ route: data.current, t: localIso(d), level });
+  const log = { route: data.current, t: localIso(d), level };
+  data.logs.push(log);
   save();
   render();
-  toast(`${$("time").value} に「${label}」を記録しました`);
+  toast(`${$("time").value} に「${label}」を記録`, () => removeLog(log));
 }
 
 $("levels").append(...LEVELS.map(([n, label]) =>
