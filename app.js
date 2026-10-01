@@ -90,9 +90,9 @@ const fmt = (t) => {
 };
 
 function renderHistory() {
-  const recent = data.logs.filter((l) => l.route === data.current)
+  const latest = data.logs.filter((l) => l.route === data.current)
     .sort((a, b) => b.t.localeCompare(a.t)).slice(0, 10);
-  $("history-list").replaceChildren(...(recent.length ? recent.map((l) => el("li", {},
+  $("history-list").replaceChildren(...(latest.length ? latest.map((l) => el("li", {},
     el("span", { className: "dot", style: `background:var(--l${l.level})` }),
     `${fmt(l.t)}  ${LEVELS[l.level - 1][1]}${(l.tags ?? []).map((x) => `・${TAGS[x]}`).join("")}`,
     el("button", { type: "button", textContent: "削除", ariaLabel: `${fmt(l.t)}の記録を削除`, onclick: () => removeLog(l) })))
@@ -206,7 +206,8 @@ function renderBackup() {
     el("button", { type: "button", textContent: "いま書き出す", onclick: exportBackup }));
 }
 
-const render = () => { renderBackup(); renderStreak(); renderForecast(); renderRoutes(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+// renderRoutes が無効な data.current を直すので最初に呼ぶ（以降の表示はその路線で描く）
+const render = () => { renderRoutes(); renderBackup(); renderStreak(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 function record(level, label) {
   const d = timeInput();
