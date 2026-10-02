@@ -2,7 +2,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node --test core.test.mjs store.test.mjs",
+    "test": "node --test core.test.mjs store.test.mjs region.test.mjs",
     "sync": "cap sync"
   },
   "dependencies": {

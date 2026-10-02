@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -270,23 +270,66 @@ document.querySelectorAll("[data-shift]").forEach((b) =>
   b.addEventListener("click", () => setTime(Number(b.dataset.shift))));
 
 $("route").addEventListener("change", (e) => { data.current = e.target.value; save(); render(); });
-$("add-route").addEventListener("click", () => {
-  const name = prompt("路線名（例: 田園都市線 上り）")?.trim();
-  if (!name) return;
+// 選択式の一覧シート（文字入力を減らす）。steps は [{ title, items: [{ label, sub?, onPick }] }] を積んでいく
+let LINES = null;
+const loadLines = async () => (LINES ??= (await (await fetch("lines.json")).json()).lines);
+const pickerStack = [];
+function showStep(step) {
+  pickerStack.push(step);
+  drawStep();
+}
+function drawStep() {
+  const step = pickerStack.at(-1);
+  $("picker-title").textContent = step.title;
+  $("picker-back").hidden = pickerStack.length < 2;
+  $("picker-list").replaceChildren(...step.items.map((it) =>
+    el("button", { type: "button", onclick: it.onPick }, el("span", { textContent: it.label }), ...(it.sub ? [el("small", { textContent: it.sub })] : []))));
+  $("picker-foot").replaceChildren(...(step.foot ? [step.foot] : []));
+  $("picker-list").scrollTop = 0;
+}
+function closePicker() {
+  pickerStack.length = 0;
+  $("picker").close();
+}
+$("picker-back").addEventListener("click", () => { pickerStack.pop(); drawStep(); });
+$("picker-close").addEventListener("click", closePicker);
+
+// 路線を選ぶ: エリア → 会社 → 路線 → 方面。onDone(name, line) で追加 or 選び直し
+async function pickRoute(title, onDone) {
+  const manual = el("button", { type: "button", className: "link-btn", textContent: "一覧にない路線は名前を入力", onclick: () => {
+    const name = prompt("路線名（例: 〇〇線 〇〇方面）")?.trim();
+    if (name) { onDone(name.slice(0, 40), null); closePicker(); }
+  } });
+  pickerStack.length = 0;
+  $("picker").showModal();
+  let lines;
+  try { lines = await loadLines(); } catch { return showStep({ title, items: [], foot: manual }); }
+  showStep({ title, foot: manual, items: REGIONS.map((region) => ({ label: region, onPick: () =>
+    showStep({ title: region, items: companiesIn(lines, region).map((company) => ({ label: companyLabel(company), onPick: () =>
+      showStep({ title: companyLabel(company), items: linesOf(lines, region, company).map((line) => ({ label: line.l, sub: `${line.s.length}駅`, onPick: () =>
+        showStep({ title: `${line.l}（どちら方面？）`, items: directionsOf(line).map((name) => ({ label: name, onPick: () => {
+          onDone(name, { c: line.c, l: line.l });
+          closePicker();
+        } })) }) })) }) })) }) })) });
+}
+
+$("add-route").addEventListener("click", () => pickRoute("路線を追加", (name, line) => {
   const id = `r${Date.now()}`;
-  data.routes.push({ id, name: name.slice(0, 40) });
+  data.routes.push({ id, name, ...(line ? { line } : {}) });
   data.current = id;
   save();
   render();
-});
-$("rename-route").addEventListener("click", () => {
+  toast(`「${name}」を追加しました`);
+}));
+// 選び直しても記録は残る（同じ路線 ID のまま名前と路線情報だけ変える）
+$("rename-route").addEventListener("click", () => pickRoute("路線を選び直す", (name, line) => {
   const r = data.routes.find((x) => x.id === data.current);
-  const name = prompt("路線名（例: 田園都市線 上り）", r.name)?.trim();
-  if (!name || name === r.name) return;
-  r.name = name.slice(0, 40);
+  r.name = name;
+  if (line) r.line = line; else delete r.line;
   save();
   render();
-});
+  toast(`「${name}」にしました（記録はそのまま）`);
+}));
 $("del-route").addEventListener("click", () => {
   const r = data.routes.find((x) => x.id === data.current);
   const n = data.logs.filter((l) => l.route === r.id).length;

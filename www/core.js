@@ -66,7 +66,12 @@ export function parseBackup(text) {
   const raw = JSON.parse(text);
   const routes = (Array.isArray(raw?.routes) ? raw.routes : [])
     .filter((r) => typeof r?.id === "string" && typeof r?.name === "string" && r.name.trim())
-    .map((r) => ({ id: r.id, name: r.name.trim().slice(0, 40) }));
+    .map((r) => {
+      const route = { id: r.id, name: r.name.trim().slice(0, 40) };
+      // 路線一覧から選んだ路線は会社名・路線名を持つ（乗換メモの駅選択に使う）
+      if (typeof r.line?.c === "string" && typeof r.line?.l === "string") route.line = { c: r.line.c.slice(0, 40), l: r.line.l.slice(0, 40) };
+      return route;
+    });
   if (!routes.length) throw new Error("路線データがありません");
   const ids = new Set(routes.map((r) => r.id));
   const logs = (Array.isArray(raw.logs) ? raw.logs : [])
@@ -209,3 +214,35 @@ export function reminderNotifications(hhmm) {
     isExactNotification: false,
   }));
 }
+
+// 路線選択（www/lines.json）。エリア → 会社 → 路線 → 方面 とタップで絞り込む
+export const REGIONS = ["北海道", "東北", "関東", "中部", "近畿", "中国", "四国", "九州・沖縄"];
+
+// その地域を走る会社。JR・公営など区分の小さい順（新幹線/JR → 公営 → 民営 → 第三セクター）に、同区分は路線数の多い順
+export function companiesIn(lines, region) {
+  const by = new Map();
+  for (const l of lines) {
+    if (!l.r.includes(region)) continue;
+    const e = by.get(l.c) ?? { k: l.k, n: 0 };
+    e.k = Math.min(e.k, l.k);
+    e.n++;
+    by.set(l.c, e);
+  }
+  return [...by].sort((a, b) => a[1].k - b[1].k || b[1].n - a[1].n || a[0].localeCompare(b[0], "ja")).map(([c]) => c);
+}
+
+export const linesOf = (lines, region, company) => lines.filter((l) => l.c === company && l.r.includes(region));
+
+// 両端の駅で方面を作る（上り/下りより分かりやすい）
+export const directionsOf = (line) =>
+  line.s.length < 2 ? [line.l] : [`${line.l} ${line.s.at(-1)}方面`, `${line.l} ${line.s[0]}方面`];
+
+// 正式名称 → ふだん呼ぶ名前（表示だけ。保存する路線情報は正式名称のまま）
+const COMPANY_LABELS = {
+  北海道旅客鉄道: "JR北海道", 東日本旅客鉄道: "JR東日本", 東海旅客鉄道: "JR東海",
+  西日本旅客鉄道: "JR西日本", 四国旅客鉄道: "JR四国", 九州旅客鉄道: "JR九州",
+  東京地下鉄: "東京メトロ", 東京都: "都営（東京都交通局）", 大阪市高速電気軌道: "Osaka Metro",
+  横浜市: "横浜市営地下鉄・バス", 名古屋市: "名古屋市営地下鉄", 京都市: "京都市営地下鉄",
+  神戸市: "神戸市営地下鉄", 札幌市: "札幌市営地下鉄・市電", 仙台市: "仙台市地下鉄", 福岡市: "福岡市地下鉄",
+};
+export const companyLabel = (c) => COMPANY_LABELS[c] ?? c;

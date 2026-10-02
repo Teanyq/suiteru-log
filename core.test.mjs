@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -206,4 +206,38 @@ test("reminderNotifications: one repeating notification per weekday (Capacitor w
   assert.ok(ns.every((n) => n.schedule.on.hour === 7 && n.schedule.on.minute === 40 && n.schedule.allowWhileIdle));
   assert.ok(ns.every((n) => n.isExactNotification === false)); // 正確アラーム権限なしで設定画面に飛ばさない
   assert.equal(reminderNotifications("bad"), null);
+});
+
+const LINES = [
+  { c: "東急電鉄", l: "田園都市線", k: 4, r: ["関東"], s: ["中央林間", "つきみ野", "渋谷"] },
+  { c: "東急電鉄", l: "東横線", k: 4, r: ["関東"], s: ["横浜", "渋谷"] },
+  { c: "東日本旅客鉄道", l: "中央線", k: 2, r: ["関東", "中部"], s: ["塩尻", "神田"] },
+  { c: "大阪市高速電気軌道", l: "御堂筋線", k: 3, r: ["近畿"], s: ["江坂", "なかもず"] },
+];
+
+test("companiesIn lists companies touching a region, JR first", () => {
+  assert.deepEqual(companiesIn(LINES, "関東"), ["東日本旅客鉄道", "東急電鉄"]);
+  assert.deepEqual(companiesIn(LINES, "中部"), ["東日本旅客鉄道"]); // 地域をまたぐ路線は両方に出る
+  assert.ok(REGIONS.includes("九州・沖縄"));
+});
+
+test("linesOf filters by region and company", () => {
+  assert.deepEqual(linesOf(LINES, "関東", "東急電鉄").map((l) => l.l), ["田園都市線", "東横線"]);
+});
+
+test("directionsOf names both directions by their terminal stations", () => {
+  assert.deepEqual(directionsOf(LINES[0]), ["田園都市線 渋谷方面", "田園都市線 中央林間方面"]);
+  assert.deepEqual(directionsOf({ l: "環状線", s: ["A"] }), ["環状線"]); // 1 駅だけなら方面なし
+});
+
+test("parseBackup keeps a route's line reference", () => {
+  const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "田園都市線 渋谷方面", line: { c: "東急電鉄", l: "田園都市線" } }, { id: "r2", name: "x", line: { c: 5 } }], logs: [] }));
+  assert.deepEqual(d.routes[0].line, { c: "東急電鉄", l: "田園都市線" });
+  assert.equal(d.routes[1].line, undefined);
+});
+
+test("companyLabel shows the everyday name for well-known operators", () => {
+  assert.equal(companyLabel("東京地下鉄"), "東京メトロ");
+  assert.equal(companyLabel("東日本旅客鉄道"), "JR東日本");
+  assert.equal(companyLabel("東急電鉄"), "東急電鉄"); // 登録がなければそのまま
 });

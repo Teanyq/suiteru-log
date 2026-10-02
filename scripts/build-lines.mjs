@@ -2,23 +2,12 @@
 // 使い方: node scripts/build-lines.mjs <N02-xx_Station.geojson>
 // 出典表示が必要（CC BY 4.0）: 「国土数値情報（鉄道データ）（国土交通省）」を加工して作成
 import { readFileSync, writeFileSync } from "node:fs";
+import { regionOf } from "./region.mjs";
 
 const src = process.argv[2];
 if (!src) { console.error("usage: node scripts/build-lines.mjs <N02-xx_Station.geojson>"); process.exit(1); }
 const { features } = JSON.parse(readFileSync(src, "utf8"));
 
-// 駅の代表点（線分の中点）からおおまかなエリアを決める。境界付近の誤差は、
-// 路線を「駅が 1 つでもあるエリアすべて」に出すことで実害を減らす
-export function regionOf(lat, lon) {
-  if (lat >= 41.4) return "北海道";
-  if (lat < 27.5 || (lon < 131.9 && lat < 34.0)) return "九州・沖縄";
-  if (lat >= 37.0 && lon >= 139.2) return "東北";
-  if (lat > 32.7 && lat < 34.35 && lon > 132.0 && lon < 134.8) return "四国";
-  if (lon < 134.2) return "中国";
-  if (lon < 136.4) return "近畿";
-  if (lon >= 138.9 && lat < 37.0 && !(lat < 35.2 && lon < 139.2)) return "関東";
-  return "中部";
-}
 
 const mid = (coords) => coords[Math.floor(coords.length / 2)];
 const lines = new Map(); // key: 会社|路線

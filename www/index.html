@@ -25,7 +25,7 @@
   <div class="route-row">
     <label for="route" class="sr-only">路線</label>
     <select id="route"></select>
-    <button id="rename-route" type="button" aria-label="路線名を変更">名前</button>
+    <button id="rename-route" type="button" aria-label="この路線を選び直す">変更</button>
     <button id="add-route" type="button" aria-label="路線を追加">＋</button>
     <button id="del-route" type="button" aria-label="この路線を削除">🗑</button>
   </div>
@@ -120,6 +120,15 @@
     </div>
   </section>
 </main>
+<dialog id="picker" class="sheet" aria-labelledby="picker-title">
+  <div class="sheet-head">
+    <button id="picker-back" type="button" aria-label="戻る">‹</button>
+    <h2 id="picker-title"></h2>
+    <button id="picker-close" type="button" aria-label="閉じる">×</button>
+  </div>
+  <div id="picker-list" class="pick-list"></div>
+  <div id="picker-foot" class="sheet-foot"></div>
+</dialog>
 <footer class="foot">
   <p>混雑の表示はあなた自身の記録の平均で、実際の混雑を保証するものではありません。記録はこの端末のブラウザ内だけに保存され、ブラウザのデータ削除や機種変更で消えることがあります（「書き出す」で控えを取れます）。本アプリの利用によって生じた損害について責任を負いかねます。</p>
   <p>路線・駅データ: 「国土数値情報（鉄道データ）」（国土交通省）を加工して作成</p>
