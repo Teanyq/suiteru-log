@@ -5,6 +5,7 @@
 ## 共通
 
 - アプリ名: すいてるログ
+- デベロッパー名: Amicha（Google Play。App Store は個人登録だと本名が販売者名として表示される）
 - カテゴリ: Google Play「地図／ナビ」、App Store「ナビゲーション」
 - 価格: 無料（広告・アプリ内課金なし）
 - プライバシーポリシー URL: https://teanyq.github.io/suiteru-log/privacy.html
