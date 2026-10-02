@@ -70,11 +70,7 @@
   <section aria-labelledby="h-memo">
     <h2 id="h-memo">乗換メモ（号車・ドア位置）</h2>
     <ul id="memo-list" class="memo-list"></ul>
-    <form id="memo-form" class="memo-form">
-      <input id="memo-station" placeholder="駅" maxlength="20" required aria-label="駅名">
-      <input id="memo-text" placeholder="5号車3ドア 階段が目の前" maxlength="100" required aria-label="メモ">
-      <button type="submit">追加</button>
-    </form>
+    <button id="memo-add" class="primary-btn" type="button">＋ 乗換メモを追加</button>
   </section>
 
   <section aria-labelledby="h-remind">
@@ -90,7 +86,7 @@
   <section aria-labelledby="h-help">
     <h2 id="h-help">使い方</h2>
     <ol class="help">
-      <li>上の「名前」で自分の路線名にする（例: 田園都市線 上り）。帰りの下りなどは＋で別の路線として追加すると精度が上がります</li>
+      <li>上の「変更」で自分の路線を選ぶ（エリア → 会社 → 路線 → 方面をタップ）。帰りの路線は「＋」で別に追加すると精度が上がります</li>
       <li>電車に乗ったら混み具合のボタンを1回押す。乗る前に開いたら「-5分」などで時刻を合わせる</li>
       <li>1〜2週間続けると「今日のおすすめ」に空いている時間帯が出ます</li>
     </ol>

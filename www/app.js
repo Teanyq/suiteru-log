@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -170,13 +170,13 @@ function renderMemos() {
   const memos = data.memos.filter((m) => m.route === data.current);
   $("memo-list").replaceChildren(...(memos.length ? memos.map((m) => el("li", {},
     el("strong", { textContent: m.station }),
-    el("span", { textContent: m.text }),
+    el("span", { textContent: memoLabel(m) }),
     el("button", { type: "button", textContent: "削除", ariaLabel: `${m.station}のメモを削除`, onclick: () => {
       data.memos = data.memos.filter((x) => x !== m);
       save();
       renderMemos();
     } })))
-    : [el("li", { className: "empty", textContent: "例: 渋谷 → 5号車3ドア（半蔵門線の階段が目の前）" })]));
+    : [el("li", { className: "empty", textContent: "例: 渋谷 → 5号車3ドア・階段・乗換" })]));
 }
 
 function renderStreak() {
@@ -282,8 +282,9 @@ function drawStep() {
   const step = pickerStack.at(-1);
   $("picker-title").textContent = step.title;
   $("picker-back").hidden = pickerStack.length < 2;
-  $("picker-list").replaceChildren(...step.items.map((it) =>
-    el("button", { type: "button", onclick: it.onPick }, el("span", { textContent: it.label }), ...(it.sub ? [el("small", { textContent: it.sub })] : []))));
+  // items（ボタンの一覧）か content（電車の絵など自由な中身）のどちらか
+  $("picker-list").replaceChildren(...(step.content ? [step.content()] : step.items.map((it) =>
+    el("button", { type: "button", onclick: it.onPick }, el("span", { textContent: it.label }), ...(it.sub ? [el("small", { textContent: it.sub })] : [])))));
   $("picker-foot").replaceChildren(...(step.foot ? [step.foot] : []));
   $("picker-list").scrollTop = 0;
 }
@@ -313,6 +314,68 @@ async function pickRoute(title, onDone) {
         } })) }) })) }) })) }) })) });
 }
 
+// 乗換メモ: 駅 → 号車（電車の絵）→ ドア → 目的、をタップで選ぶ
+async function pickMemo() {
+  const route = data.routes.find((r) => r.id === data.current);
+  const draft = { route: route.id };
+  pickerStack.length = 0;
+  $("picker").showModal();
+  let lines = [];
+  try { lines = await loadLines(); } catch {}
+  const line = route.line && lines.find((l) => l.c === route.line.c && l.l === route.line.l);
+  const typeStation = el("button", { type: "button", className: "link-btn", textContent: "一覧にない駅は名前を入力", onclick: () => {
+    const s = prompt("駅名")?.trim();
+    if (s) { draft.station = s.slice(0, 20); carStep(); }
+  } });
+  const stationItems = (names) => names.map((s) => ({ label: s, onPick: () => { draft.station = s; carStep(); } }));
+  // 正式な路線区分の都合で目当ての駅がない時（例: 山手線の東京駅は正式には東海道線）は、同じ会社のほかの路線から選ぶ
+  const otherLines = line && el("button", { type: "button", className: "link-btn", textContent: "この会社のほかの路線から選ぶ", onclick: () =>
+    showStep({ title: companyLabel(line.c), items: lines.filter((l) => l.c === line.c && l !== line).map((l) => ({ label: l.l, sub: `${l.s.length}駅`, onPick: () =>
+      showStep({ title: l.l, items: stationItems(l.s) }) })) }) });
+  showStep({
+    title: "どの駅のメモ？",
+    items: line ? stationItems(line.s) : [],
+    foot: el("div", { className: "foot-stack" }, ...(otherLines ? [otherLines] : [el("p", { className: "note", textContent: "路線を「変更」で一覧から選ぶと、駅をタップで選べます。" })]), typeStation),
+  });
+
+  function carStep() {
+    route.cars ??= 10;
+    const train = () => el("div", {},
+      el("div", { className: "cars-row" },
+        el("button", { type: "button", className: "chip", textContent: "−", ariaLabel: "両数を減らす", onclick: () => { route.cars = Math.max(1, route.cars - 1); save(); drawStep(); } }),
+        el("span", { textContent: `${route.cars}両編成` }),
+        el("button", { type: "button", className: "chip", textContent: "＋", ariaLabel: "両数を増やす", onclick: () => { route.cars = Math.min(20, route.cars + 1); save(); drawStep(); } })),
+      el("div", { className: "train", role: "group", ariaLabel: "号車を選ぶ" }, ...Array.from({ length: route.cars }, (_, i) =>
+        el("button", { type: "button", className: "car", ariaLabel: `${i + 1}号車`, onclick: () => { draft.car = i + 1; doorStep(); } },
+          el("b", { textContent: i + 1 }), el("small", { textContent: "号車" })))),
+      el("p", { className: "note", textContent: "号車の番号はホームの足元や車内の表示で確認できます。" }));
+    showStep({ title: `${draft.station}：何号車？`, content: train,
+      foot: el("button", { type: "button", className: "link-btn", textContent: "号車は決めない", onclick: () => { delete draft.car; tagStep(); } }) });
+  }
+  function doorStep() {
+    showStep({ title: `${draft.car}号車：どのドア？`, items: [1, 2, 3, 4].map((d) => ({ label: `${d}ドア`, onPick: () => { draft.door = d; tagStep(); } })),
+      foot: el("button", { type: "button", className: "link-btn", textContent: "ドアは決めない", onclick: () => { delete draft.door; tagStep(); } }) });
+  }
+  function tagStep() {
+    const chosen = new Set();
+    const saveBtn = el("button", { type: "button", className: "primary-btn", textContent: "保存", onclick: () => {
+      if (chosen.size) draft.tags = [...chosen];
+      if (!draft.car && !draft.tags) return toast("号車か目的を1つ選んでください");
+      data.memos.push(draft);
+      save();
+      renderMemos();
+      closePicker();
+      toast(`${draft.station}：${memoLabel(draft)} を保存しました`);
+    } });
+    showStep({ title: "何がある？（いくつでも）", content: () => el("div", { className: "tag-grid" }, ...Object.entries(MEMO_TAGS).map(([key, label]) => {
+      const b = el("button", { type: "button", className: "chip", textContent: label, ariaPressed: "false" });
+      b.onclick = () => { chosen.has(key) ? chosen.delete(key) : chosen.add(key); b.ariaPressed = String(chosen.has(key)); };
+      return b;
+    })), foot: saveBtn });
+  }
+}
+$("memo-add").addEventListener("click", pickMemo);
+
 $("add-route").addEventListener("click", () => pickRoute("路線を追加", (name, line) => {
   const id = `r${Date.now()}`;
   data.routes.push({ id, name, ...(line ? { line } : {}) });
@@ -341,16 +404,7 @@ $("del-route").addEventListener("click", () => {
   render();
 });
 
-$("memo-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const station = $("memo-station").value.trim().slice(0, 20);
-  const text = $("memo-text").value.trim().slice(0, 100);
-  if (!station || !text) return;
-  data.memos.push({ route: data.current, station, text });
-  save();
-  renderMemos();
-  e.target.reset();
-});
+
 
 function download(content, type, filename) {
   const url = URL.createObjectURL(new Blob([content], { type }));

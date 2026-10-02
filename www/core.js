@@ -70,6 +70,7 @@ export function parseBackup(text) {
       const route = { id: r.id, name: r.name.trim().slice(0, 40) };
       // 路線一覧から選んだ路線は会社名・路線名を持つ（乗換メモの駅選択に使う）
       if (typeof r.line?.c === "string" && typeof r.line?.l === "string") route.line = { c: r.line.c.slice(0, 40), l: r.line.l.slice(0, 40) };
+      if (Number.isInteger(r.cars) && r.cars >= 1 && r.cars <= 20) route.cars = r.cars; // 乗換メモの編成両数
       return route;
     });
   if (!routes.length) throw new Error("路線データがありません");
@@ -81,9 +82,20 @@ export function parseBackup(text) {
       return ok.length ? { route, t, level, tags: ok } : { route, t, level };
     });
   const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const int = (v, max) => (Number.isInteger(v) && v >= 1 && v <= max ? v : undefined);
   const memos = (Array.isArray(raw.memos) ? raw.memos : [])
-    .map((m) => ({ route: m?.route, station: str(m?.station, 20), text: str(m?.text, 100) }))
-    .filter((m) => ids.has(m.route) && m.station && m.text);
+    .map((m) => {
+      const memo = { route: m?.route, station: str(m?.station, 20) };
+      const car = int(m?.car, 20), door = int(m?.door, 6), text = str(m?.text, 100);
+      const tags = Array.isArray(m?.tags) ? [...new Set(m.tags)].filter((t) => Object.hasOwn(MEMO_TAGS, t)) : [];
+      if (car) memo.car = car;
+      if (car && door) memo.door = door;
+      if (tags.length) memo.tags = tags;
+      if (text) memo.text = text;
+      return memo;
+    })
+    // 駅と、号車・目的・文字のどれか 1 つは必要（中身のないメモは捨てる）
+    .filter((m) => ids.has(m.route) && m.station && (m.car || m.tags || m.text));
   return { routes, logs, memos, current: ids.has(raw.current) ? raw.current : routes[0].id };
 }
 
@@ -246,3 +258,12 @@ const COMPANY_LABELS = {
   神戸市: "神戸市営地下鉄", 札幌市: "札幌市営地下鉄・市電", 仙台市: "仙台市地下鉄", 福岡市: "福岡市地下鉄",
 };
 export const companyLabel = (c) => COMPANY_LABELS[c] ?? c;
+
+// 乗換メモの目的（タップで選ぶ）
+export const MEMO_TAGS = { stairs: "階段", escalator: "エスカレーター", elevator: "エレベーター", transfer: "乗換", gate: "改札", exit: "出口", toilet: "トイレ" };
+
+// 「5号車3ドア・階段・乗換」。文字だけの旧メモはそのまま出す
+export function memoLabel(m) {
+  const pos = m.car ? `${m.car}号車${m.door ? `${m.door}ドア` : ""}` : "";
+  return [pos, ...(m.tags ?? []).map((t) => MEMO_TAGS[t]), m.text].filter(Boolean).join("・");
+}

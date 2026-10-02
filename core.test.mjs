@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -240,4 +240,31 @@ test("companyLabel shows the everyday name for well-known operators", () => {
   assert.equal(companyLabel("東京地下鉄"), "東京メトロ");
   assert.equal(companyLabel("東日本旅客鉄道"), "JR東日本");
   assert.equal(companyLabel("東急電鉄"), "東急電鉄"); // 登録がなければそのまま
+});
+
+test("memoLabel formats tap-built memos and still shows old free-text memos", () => {
+  assert.equal(memoLabel({ station: "渋谷", car: 5, door: 3, tags: ["stairs", "transfer"] }), "5号車3ドア・階段・乗換");
+  assert.equal(memoLabel({ station: "渋谷", car: 8 }), "8号車");
+  assert.equal(memoLabel({ station: "渋谷", text: "半蔵門線の階段" }), "半蔵門線の階段");
+  assert.equal(memoLabel({ station: "渋谷", car: 2, text: "前寄り" }), "2号車・前寄り");
+  assert.ok(Object.keys(MEMO_TAGS).includes("elevator"));
+});
+
+test("parseBackup keeps car/door/tags memos and drops invalid ones", () => {
+  const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }], logs: [], memos: [
+    { route: "r1", station: "渋谷", car: 5, door: 3, tags: ["stairs", "bogus"] },
+    { route: "r1", station: "渋谷", car: 99 },
+    { route: "r1", station: "渋谷" },
+    { route: "r1", station: "新橋", text: "改札近い" },
+  ] }));
+  assert.deepEqual(d.memos, [
+    { route: "r1", station: "渋谷", car: 5, door: 3, tags: ["stairs"] },
+    { route: "r1", station: "新橋", text: "改札近い" },
+  ]);
+});
+
+test("parseBackup keeps a route's car count (1-20)", () => {
+  const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A", cars: 10 }, { id: "r2", name: "B", cars: 99 }], logs: [] }));
+  assert.equal(d.routes[0].cars, 10);
+  assert.equal(d.routes[1].cars, undefined);
 });
