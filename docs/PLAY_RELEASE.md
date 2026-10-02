@@ -1,6 +1,6 @@
 # Google Play への提出手順
 
-前提: Google Play Console の開発者登録（25 ドル、本人が行う）と、プライバシーポリシーの公開 URL。
+前提: Google Play Console の開発者登録（25 ドル、本人が行う）。プライバシーポリシーは公開済み（下表）。
 
 ## 1. 署名鍵（アップロード鍵）を作る ― 最初の 1 回だけ、本人が行う
 
@@ -42,7 +42,7 @@ cd android && JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-21.0.12.101-hotsp
 | フィーチャーグラフィック | `docs/store/feature-graphic.png` |
 | スクリーンショット | `docs/store/screenshots/android-*.png` |
 | カテゴリ | 地図／ナビ |
-| プライバシーポリシー | 公開した `privacy.html` の URL |
+| プライバシーポリシー | https://teanyq.github.io/suiteru-log/privacy.html |
 | アプリの署名 | Play App Signing を使う（既定）。アップロードするのは上で作った鍵で署名した AAB |
 
 ### データ セーフティ（データの取り扱いに関する申告）

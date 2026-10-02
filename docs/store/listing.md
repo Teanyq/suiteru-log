@@ -7,7 +7,8 @@
 - アプリ名: すいてるログ
 - カテゴリ: Google Play「地図／ナビ」、App Store「ナビゲーション」
 - 価格: 無料（広告・アプリ内課金なし）
-- プライバシーポリシー URL: 公開先が決まったら `https://…/privacy.html`
+- プライバシーポリシー URL: https://teanyq.github.io/suiteru-log/privacy.html
+- Web 版: https://teanyq.github.io/suiteru-log/
 - サポート連絡先: teanyq.scl@gmail.com
 
 ## Google Play
