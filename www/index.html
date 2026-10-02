@@ -33,6 +33,11 @@
 
 <main>
   <p id="backup-nudge" class="nudge" hidden></p>
+  <section aria-labelledby="h-cars" class="hero">
+    <h2 id="h-cars">空いてる号車</h2>
+    <div id="car-reco"></div>
+  </section>
+
   <section aria-labelledby="h-rec">
     <h2 id="h-rec">いまの混み具合</h2>
     <div id="streak" class="streak"></div>
@@ -49,6 +54,10 @@
     <p id="forecast" class="forecast" aria-live="polite"></p>
     <div class="tags" id="tags" role="group" aria-label="今回の状況（集計から外す）"></div>
     <label class="period"><input id="period" type="checkbox"> 試験・休暇の期間中（集計に入れない）</label>
+    <div class="car-pick-wrap">
+      <span class="car-pick-label">乗っている号車</span>
+      <div id="car-pick" class="car-pick" role="group" aria-label="乗っている号車"></div>
+    </div>
     <div class="levels" id="levels"></div>
     <p id="toast" role="status" aria-live="polite"></p>
     <details id="history">

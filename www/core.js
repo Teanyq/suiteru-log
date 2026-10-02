@@ -71,6 +71,7 @@ export function parseBackup(text) {
       // 路線一覧から選んだ路線は会社名・路線名を持つ（乗換メモの駅選択に使う）
       if (typeof r.line?.c === "string" && typeof r.line?.l === "string") route.line = { c: r.line.c.slice(0, 40), l: r.line.l.slice(0, 40) };
       if (Number.isInteger(r.cars) && r.cars >= 1 && r.cars <= 20) route.cars = r.cars; // 乗換メモの編成両数
+      if (Number.isInteger(r.lastCar) && r.lastCar >= 1 && r.lastCar <= 20) route.lastCar = r.lastCar; // v2: 前回乗った号車
       return route;
     });
   if (!routes.length) throw new Error("路線データがありません");

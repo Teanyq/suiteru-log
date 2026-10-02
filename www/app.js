@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -218,7 +218,44 @@ function renderBackup() {
 }
 
 // renderRoutes が無効な data.current を直すので最初に呼ぶ（以降の表示はその路線で描く）
-const render = () => { renderRoutes(); renderBackup(); renderStreak(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+// ── v2: 空いてる号車 ──
+const currentRoute = () => data.routes.find((r) => r.id === data.current);
+// 乗換メモで階段・エスカレーターがある号車（どの駅かは問わず、その路線で混みやすい号車とみなす）
+const stairsCarsOf = (routeId) => [...new Set(data.memos.filter((m) => m.route === routeId && m.car && m.tags?.some((t) => t === "stairs" || t === "escalator")).map((m) => m.car))];
+
+function renderCars() {
+  const route = currentRoute();
+  if (!route) return;
+  const cars = route.cars ?? 10;
+  const d = timeInput() ?? new Date();
+  const est = carEstimates({ route: route.id, cars, dow: d.getDay(), slot: slotOf(localIso(d)), now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id) });
+  const min = Math.min(...est.map((c) => c.value));
+  const bests = est.filter((c) => c.value - min < 0.05); // 同点（両端など）はまとめて出す
+  const best = bests[0];
+  const reports = est.reduce((n, c) => n + c.n, 0);
+  const basis = reports
+    ? `${slotLabel(slotOf(localIso(d)))}台・あなたの号車つき記録 ${reports} 件と一般的な傾向から推定`
+    : "まだ号車つきの記録がないので、一般的な傾向（端の号車ほど空きやすい）から推定しています";
+  $("car-reco").replaceChildren(
+    el("p", { className: "reco-head" }, "おすすめは ", el("strong", { textContent: bests.map((c) => `${c.car}号車`).join("・") }), best.stars === 1 ? el("span", { className: "badge", textContent: "推定" }) : ""),
+    el("div", { className: "train mini", role: "img", ariaLabel: est.map((c) => `${c.car}号車 ${LEVELS[Math.round(c.value) - 1][1]}`).join("、") },
+      ...est.map((c) => el("div", { className: `car-cell${c.stars === 1 ? " guess" : ""}${bests.includes(c) ? " best" : ""}`, style: `background:${color(c.value)}` },
+        el("b", { textContent: c.car }), el("small", { textContent: "★".repeat(c.stars) })))),
+    el("p", { className: "note", textContent: basis }),
+  );
+}
+
+// 1タップ記録用: 乗っている号車（路線ごとに前回の号車を覚えておく）
+function renderCarPick() {
+  const route = currentRoute();
+  if (!route) return;
+  const cars = route.cars ?? 10;
+  const pick = (n) => { route.lastCar = route.lastCar === n ? undefined : n; save(); renderCarPick(); };
+  $("car-pick").replaceChildren(...Array.from({ length: cars }, (_, i) =>
+    el("button", { type: "button", className: "chip", textContent: i + 1, ariaLabel: `${i + 1}号車`, ariaPressed: String(route.lastCar === i + 1), onclick: () => pick(i + 1) })));
+}
+
+const render = () => { renderRoutes(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 // 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
 // Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）
@@ -229,6 +266,8 @@ function record(level, label) {
   const d = timeInput();
   if (!d) return toast("時刻を入れてください");
   const log = { route: data.current, t: localIso(d), level };
+  const car = currentRoute()?.lastCar;
+  if (car) log.car = car;
   const tags = [...activeTags, ...(data.periodMode ? ["period"] : [])];
   if (tags.length) log.tags = tags;
   data.logs.push(log);
@@ -237,7 +276,7 @@ function record(level, label) {
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
   setTags([]); // 印は1回ごと
   render();
-  toast(`${$("time").value} に「${label}」を記録${note}`, () => removeLog(log));
+  toast(`${$("time").value}${car ? ` ${car}号車` : ""} に「${label}」を記録${note}`, () => removeLog(log));
 }
 
 const activeTags = new Set();
@@ -265,7 +304,7 @@ $("levels").append(...LEVELS.map(([n, label]) =>
   el("button", { type: "button", style: `background:var(--l${n})`, onclick: () => record(n, label) },
     el("span", { className: "n", textContent: n }), label)));
 
-$("time").addEventListener("input", renderForecast);
+$("time").addEventListener("input", () => { renderForecast(); renderCars(); });
 document.querySelectorAll("[data-shift]").forEach((b) =>
   b.addEventListener("click", () => setTime(Number(b.dataset.shift))));
 

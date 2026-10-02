@@ -132,3 +132,20 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .car small { color: var(--muted); font-size: .7rem; }
 .car:active { background-color: var(--accent); color: var(--accent-ink); }
 .tag-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }
+/* v2: 空いてる号車 */
+.hero h2 { margin-bottom: 6px; }
+.reco-head { margin: 0 0 10px; font-size: 1.1rem; }
+.reco-head strong { font-size: 1.8rem; color: var(--accent); margin: 0 4px; }
+.badge { display: inline-block; margin-left: 6px; padding: 1px 8px; border: 1px dashed var(--muted); border-radius: 999px; font-size: .75rem; color: var(--muted); vertical-align: middle; }
+.train.mini { gap: 3px; padding: 0 0 6px; }
+.car-cell { flex: 1 1 0; min-width: 22px; height: 46px; display: grid; place-content: center; border-radius: 8px; color: #fff; text-align: center; }
+.car-cell:first-child { border-top-left-radius: 18px; }
+.car-cell:last-child { border-top-right-radius: 18px; }
+.car-cell b { font-size: .95rem; line-height: 1.1; }
+.car-cell small { font-size: .55rem; letter-spacing: -1px; }
+.car-cell.guess { opacity: .55; outline: 2px dashed var(--line); outline-offset: -2px; }
+.car-cell.best { box-shadow: 0 0 0 3px var(--text); }
+.car-pick-wrap { margin: 0 0 10px; }
+.car-pick-label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
+.car-pick { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.car-pick .chip { flex: none; min-width: 40px; }
