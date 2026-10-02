@@ -102,3 +102,9 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .foot p { margin: 0 0 6px; }
 .link-btn { margin-top: 8px; padding: 4px 0; border: 0; background: none; color: var(--accent); text-decoration: underline; font-size: .85rem; }
 .link-btn[hidden] { display: none; }
+.doc { padding-bottom: 24px; }
+.doc h1 { color: var(--text); margin-top: 24px; }
+.doc h2 { margin: 20px 0 6px; }
+.doc p, .doc li { font-size: .9rem; line-height: 1.7; }
+.doc ul { padding-left: 1.2em; }
+.doc a, .foot a { color: var(--accent); }
