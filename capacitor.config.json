@@ -1,5 +1,5 @@
 {
-  "appId": "app.suiteru.log",
+  "appId": "io.github.teanyq.suiteru",
   "appName": "すいてるログ",
   "webDir": "www",
   "plugins": {

@@ -33,7 +33,7 @@ www/                    アプリ本体（Web 公開とスマホアプリ化で�
   manifest.webmanifest  PWA 設定
   icon.svg, icon-*.png  アイコン（iOS 用 180px PNG を含む）
 android/, ios/           Capacitor が生成したネイティブプロジェクト（www/ は `npm run sync` でコピーされる）
-capacitor.config.json   アプリ ID（仮: app.suiteru.log）・アプリ名・webDir
+capacitor.config.json   アプリ ID（io.github.teanyq.suiteru）・アプリ名・webDir
 core.test.mjs, store.test.mjs  www/core.js・www/store.js のテスト
 docs/                   仕様・ロードマップ・開発サイクル・公開手順・アプリ化計画
 ```

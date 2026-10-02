@@ -1,4 +1,4 @@
-package app.suiteru.log;
+package io.github.teanyq.suiteru;
 
 import com.getcapacitor.BridgeActivity;
 

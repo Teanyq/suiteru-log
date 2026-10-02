@@ -7,10 +7,10 @@ def keystoreProps = new Properties()
 if (keystorePropsFile.exists()) keystorePropsFile.withInputStream { keystoreProps.load(it) }
 
 android {
-    namespace = "app.suiteru.log"
+    namespace = "io.github.teanyq.suiteru"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.suiteru.log"
+        applicationId "io.github.teanyq.suiteru"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
