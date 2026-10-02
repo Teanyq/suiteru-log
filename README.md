@@ -63,6 +63,10 @@ cd android && JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-21.0.12.101-hotsp
 
 できあがり: `android/app/build/outputs/apk/debug/app-debug.apk`（SDK の場所は `android/local.properties`。git 管理外）
 
+## 路線・駅データ
+
+`www/lines.json` は国土数値情報（鉄道データ N02、国土交通省、CC BY 4.0）の駅データから `node scripts/build-lines.mjs <N02-xx_Station.geojson>` で作る（596 路線・約 1 万駅）。路線名は正式名称（例: JR 山手線は品川〜新宿〜田端の区間のみ）。データ更新時は最新版をダウンロードして再生成する。
+
 ## データ形式
 
 localStorage のキー `suiteru.v1`：
