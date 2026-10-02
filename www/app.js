@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -255,7 +255,13 @@ function renderCarPick() {
     el("button", { type: "button", className: "chip", textContent: i + 1, ariaLabel: `${i + 1}号車`, ariaPressed: String(route.lastCar === i + 1), onclick: () => pick(i + 1) })));
 }
 
-const render = () => { renderRoutes(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+function renderPoints() {
+  const pts = pointsOf(data.logs);
+  const { title, next, toNext } = titleOf(pts);
+  $("points").replaceChildren(el("strong", { textContent: title }), ` ${pts}pt`, next ? el("small", { textContent: `（${next}まであと${toNext}pt）` }) : "");
+}
+
+const render = () => { renderRoutes(); renderPoints(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 // 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
 // Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）
@@ -270,13 +276,15 @@ function record(level, label) {
   if (car) log.car = car;
   const tags = [...activeTags, ...(data.periodMode ? ["period"] : [])];
   if (tags.length) log.tags = tags;
+  const before = pointsOf(data.logs);
   data.logs.push(log);
+  const gained = pointsOf(data.logs) - before;
   save();
   buzz();
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
   setTags([]); // 印は1回ごと
   render();
-  toast(`${$("time").value}${car ? ` ${car}号車` : ""} に「${label}」を記録${note}`, () => removeLog(log));
+  toast(`${$("time").value}${car ? ` ${car}号車` : ""} に「${label}」を記録 +${gained}pt${note}`, () => removeLog(log));
 }
 
 const activeTags = new Set();

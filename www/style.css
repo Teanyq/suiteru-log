@@ -149,3 +149,6 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .car-pick-label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
 .car-pick { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
 .car-pick .chip { flex: none; min-width: 40px; }
+.points { margin: -6px 0 12px; font-size: .85rem; }
+.points strong { color: var(--accent); }
+.points small { color: var(--muted); }

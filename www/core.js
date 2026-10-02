@@ -317,3 +317,31 @@ export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [
     return { car: i + 1, value: (PRIOR_WEIGHT * p + s) / (PRIOR_WEIGHT + w), prior: p, n, stars: w < 0.5 ? 1 : w < 3 ? 2 : 3 };
   });
 }
+
+// ── v2: ポイントと称号（記録から毎回計算し直す。取り消せばポイントも戻る）──
+export function pointsOf(logs) {
+  let pts = 0;
+  for (const l of logs) pts += 10 + (l.car ? 5 : 0);
+  // 平日の連続記録 5 日ごとに +50（土日はまたいでも途切れない）
+  const days = [...new Set(logs.map((l) => l.t.slice(0, 10)))]
+    .filter((k) => !isWeekend(new Date(`${k}T12:00:00`).getDay())).sort();
+  let run = 0, prev = null;
+  for (const k of days) {
+    const d = new Date(`${k}T12:00:00`);
+    if (prev) {
+      const gap = new Date(prev);
+      do gap.setDate(gap.getDate() + 1); while (isWeekend(gap.getDay()));
+      run = dayKey(gap) === k ? run + 1 : 1;
+    } else run = 1;
+    if (run % 5 === 0) pts += 50;
+    prev = d;
+  }
+  return pts;
+}
+
+const TITLES = [[0, "見習い乗客"], [100, "通勤ルーキー"], [300, "号車ハンター"], [700, "ベテラン車掌"], [1500, "路線マイスター"], [3000, "伝説の運転士"]];
+export function titleOf(points) {
+  const i = TITLES.findLastIndex(([min]) => points >= min);
+  const next = TITLES[i + 1];
+  return { title: TITLES[i][1], next: next ? next[1] : null, toNext: next ? next[0] - points : 0 };
+}

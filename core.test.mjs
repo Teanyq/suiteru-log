@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -319,4 +319,25 @@ test("parseBackup keeps a record's car (1-20)", () => {
   ] }));
   assert.equal(d.logs[0].car, 5);
   assert.equal(d.logs[1].car, undefined);
+});
+
+test("pointsOf: 10 per record, +5 with a car, +50 for every 5 consecutive weekdays", () => {
+  const rec = (day, car) => ({ route: "r1", t: `${day}T07:40:00`, level: 3, ...(car ? { car } : {}) });
+  assert.equal(pointsOf([]), 0);
+  assert.equal(pointsOf([rec("2026-09-28"), rec("2026-09-28", 3)]), 25);
+  // 月〜金（9/28〜10/2）の 5 連続 = 5×10 + 50
+  const week = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"].map((d) => rec(d));
+  assert.equal(pointsOf(week), 100);
+  // 土日をはさんでも途切れない: 木金 + 月火水 = 5 連続
+  const across = ["2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07"].map((d) => rec(d));
+  assert.equal(pointsOf(across), 100);
+  // 平日を 1 日空けると途切れる
+  const broken = ["2026-09-28", "2026-09-29", "2026-10-01", "2026-10-02", "2026-10-05"].map((d) => rec(d));
+  assert.equal(pointsOf(broken), 50);
+});
+
+test("titleOf picks the title by points and says how far to the next", () => {
+  assert.deepEqual(titleOf(0), { title: "見習い乗客", next: "通勤ルーキー", toNext: 100 });
+  assert.deepEqual(titleOf(320), { title: "号車ハンター", next: "ベテラン車掌", toNext: 380 });
+  assert.equal(titleOf(99999).next, null);
 });
