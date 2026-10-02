@@ -246,8 +246,16 @@ export function companiesIn(lines, region) {
 export const linesOf = (lines, region, company) => lines.filter((l) => l.c === company && l.r.includes(region));
 
 // 両端の駅で方面を作る（上り/下りより分かりやすい）
-export const directionsOf = (line) =>
-  line.s.length < 2 ? [line.l] : [`${line.l} ${line.s.at(-1)}方面`, `${line.l} ${line.s[0]}方面`];
+export const directionsOf = (line) => {
+  const name = lineLabel(line);
+  return line.s.length < 2 ? [name] : [`${name} ${line.s.at(-1)}方面`, `${name} ${line.s[0]}方面`];
+};
+
+// 地下鉄などの正式名「11号線半蔵門線」「1号線(御堂筋線)」→ ふだんの名前。名前のない「N号線」はそのまま
+const LINE_LABELS = { "横浜市|1号線": "ブルーライン（1号線）", "横浜市|3号線": "ブルーライン（3号線）", "横浜市|4号線": "グリーンライン" };
+export function lineLabel({ c, l }) {
+  return LINE_LABELS[`${c}|${l}`] ?? l.replace(/^\d+号線\(?(.+?)\)?$/, "$1");
+}
 
 // 正式名称 → ふだん呼ぶ名前（表示だけ。保存する路線情報は正式名称のまま）
 const COMPANY_LABELS = {

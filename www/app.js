@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -307,8 +307,8 @@ async function pickRoute(title, onDone) {
   try { lines = await loadLines(); } catch { return showStep({ title, items: [], foot: manual }); }
   showStep({ title, foot: manual, items: REGIONS.map((region) => ({ label: region, onPick: () =>
     showStep({ title: region, items: companiesIn(lines, region).map((company) => ({ label: companyLabel(company), onPick: () =>
-      showStep({ title: companyLabel(company), items: linesOf(lines, region, company).map((line) => ({ label: line.l, sub: `${line.s.length}駅`, onPick: () =>
-        showStep({ title: `${line.l}（どちら方面？）`, items: directionsOf(line).map((name) => ({ label: name, onPick: () => {
+      showStep({ title: companyLabel(company), items: linesOf(lines, region, company).map((line) => ({ label: lineLabel(line), sub: `${line.s.length}駅`, onPick: () =>
+        showStep({ title: `${lineLabel(line)}（どちら方面？）`, items: directionsOf(line).map((name) => ({ label: name, onPick: () => {
           onDone(name, { c: line.c, l: line.l });
           closePicker();
         } })) }) })) }) })) }) })) });
@@ -330,8 +330,8 @@ async function pickMemo() {
   const stationItems = (names) => names.map((s) => ({ label: s, onPick: () => { draft.station = s; carStep(); } }));
   // 正式な路線区分の都合で目当ての駅がない時（例: 山手線の東京駅は正式には東海道線）は、同じ会社のほかの路線から選ぶ
   const otherLines = line && el("button", { type: "button", className: "link-btn", textContent: "この会社のほかの路線から選ぶ", onclick: () =>
-    showStep({ title: companyLabel(line.c), items: lines.filter((l) => l.c === line.c && l !== line).map((l) => ({ label: l.l, sub: `${l.s.length}駅`, onPick: () =>
-      showStep({ title: l.l, items: stationItems(l.s) }) })) }) });
+    showStep({ title: companyLabel(line.c), items: lines.filter((l) => l.c === line.c && l !== line).map((l) => ({ label: lineLabel(l), sub: `${l.s.length}駅`, onPick: () =>
+      showStep({ title: lineLabel(l), items: stationItems(l.s) }) })) }) });
   showStep({
     title: "どの駅のメモ？",
     items: line ? stationItems(line.s) : [],

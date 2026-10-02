@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -267,4 +267,13 @@ test("parseBackup keeps a route's car count (1-20)", () => {
   const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A", cars: 10 }, { id: "r2", name: "B", cars: 99 }], logs: [] }));
   assert.equal(d.routes[0].cars, 10);
   assert.equal(d.routes[1].cars, undefined);
+});
+
+test("lineLabel drops the official route number subways carry", () => {
+  assert.equal(lineLabel({ c: "東京地下鉄", l: "11号線半蔵門線" }), "半蔵門線");
+  assert.equal(lineLabel({ c: "大阪市高速電気軌道", l: "1号線(御堂筋線)" }), "御堂筋線");
+  assert.equal(lineLabel({ c: "横浜市", l: "4号線" }), "グリーンライン");
+  assert.equal(lineLabel({ c: "千葉都市モノレール", l: "1号線" }), "1号線"); // 名前がなければそのまま
+  assert.equal(lineLabel({ c: "東急電鉄", l: "田園都市線" }), "田園都市線");
+  assert.deepEqual(directionsOf({ c: "東京地下鉄", l: "3号線銀座線", s: ["浅草", "渋谷"] }), ["銀座線 渋谷方面", "銀座線 浅草方面"]);
 });
