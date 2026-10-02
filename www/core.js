@@ -77,9 +77,11 @@ export function parseBackup(text) {
   const ids = new Set(routes.map((r) => r.id));
   const logs = (Array.isArray(raw.logs) ? raw.logs : [])
     .filter((l) => ids.has(l?.route) && T_RE.test(l?.t) && Number.isInteger(l?.level) && l.level >= 1 && l.level <= 5)
-    .map(({ route, t, level, tags }) => {
+    .map(({ route, t, level, tags, car }) => {
       const ok = Array.isArray(tags) ? [...new Set(tags)].filter((x) => Object.hasOwn(TAGS, x)) : [];
-      return ok.length ? { route, t, level, tags: ok } : { route, t, level };
+      const log = ok.length ? { route, t, level, tags: ok } : { route, t, level };
+      if (Number.isInteger(car) && car >= 1 && car <= 20) log.car = car; // v2: 号車つきの報告
+      return log;
     });
   const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
   const int = (v, max) => (Number.isInteger(v) && v >= 1 && v <= max ? v : undefined);
@@ -274,4 +276,43 @@ export const MEMO_TAGS = { stairs: "階段", escalator: "エスカレーター",
 export function memoLabel(m) {
   const pos = m.car ? `${m.car}号車${m.door ? `${m.door}ドア` : ""}` : "";
   return [pos, ...(m.tags ?? []).map((t) => MEMO_TAGS[t]), m.text].filter(Boolean).join("・");
+}
+
+// ── v2: 号車ごとの混雑推定（docs/SPEC-v2.md）────────────────────────────
+// 事前推定: 端ほど空いている U 字型。中央 +0.4、端 -0.8（両数で補間）を base に足す
+export function carPrior(cars, base = 3) {
+  return Array.from({ length: cars }, (_, i) => {
+    const x = cars === 1 ? 0 : (i + 0.5) / cars - 0.5; // -0.5（先頭）〜 +0.5（最後尾）
+    const offset = cars === 1 ? 0.4 : 0.4 - 1.2 * ((x / (0.5 - 0.5 / cars)) ** 2);
+    return Math.min(5, Math.max(1, base + offset));
+  });
+}
+
+const PRIOR_WEIGHT = 3; // 事前推定を「報告 3 件分」とみなす
+const HALF_LIFE_DAYS = 30; // 報告の重みが半分になる日数
+
+// その路線・曜日の種類・15分枠（前後 1 枠は半分の重み）の、号車つき報告から号車ごとの混雑を推定する
+export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [] }) {
+  const mine = logs.filter((l) => l.route === route && !l.tags?.length);
+  const weightOf = (l) => {
+    const d = new Date(l.t);
+    if (isWeekend(d.getDay()) !== isWeekend(dow)) return 0;
+    const ds = Math.abs(slotOf(l.t) - slot);
+    if (ds > 1) return 0;
+    const ageDays = (now - d) / 86400000;
+    return (ds === 0 ? 1 : 0.5) * 0.5 ** (Math.max(0, ageDays) / HALF_LIFE_DAYS);
+  };
+  // 号車なしの記録も含めた、その時間帯の自分の平均を事前推定の土台にする（なければ 3）
+  let bw = 0, bs = 0;
+  for (const l of mine) { const w = weightOf(l); bw += w; bs += w * l.level; }
+  const prior = carPrior(cars, bw > 0 ? bs / bw : 3).map((p, i) => Math.min(5, p + (stairsCars.includes(i + 1) ? 0.5 : 0)));
+  return prior.map((p, i) => {
+    let w = 0, s = 0, n = 0;
+    for (const l of mine) {
+      if (l.car !== i + 1) continue;
+      const lw = weightOf(l);
+      if (lw > 0) { w += lw; s += lw * l.level; n++; }
+    }
+    return { car: i + 1, value: (PRIOR_WEIGHT * p + s) / (PRIOR_WEIGHT + w), prior: p, n, stars: w < 0.5 ? 1 : w < 3 ? 2 : 3 };
+  });
 }

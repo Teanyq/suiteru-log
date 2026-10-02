@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -276,4 +276,47 @@ test("lineLabel drops the official route number subways carry", () => {
   assert.equal(lineLabel({ c: "千葉都市モノレール", l: "1号線" }), "1号線"); // 名前がなければそのまま
   assert.equal(lineLabel({ c: "東急電鉄", l: "田園都市線" }), "田園都市線");
   assert.deepEqual(directionsOf({ c: "東京地下鉄", l: "3号線銀座線", s: ["浅草", "渋谷"] }), ["銀座線 渋谷方面", "銀座線 浅草方面"]);
+});
+
+test("carPrior is U-shaped: end cars emptier than the middle", () => {
+  const p = carPrior(10, 3);
+  assert.ok(p[0] < p[4] && p[9] < p[5], "端の方が空いている");
+  assert.ok(Math.abs(p[0] - 2.2) < 0.01 && Math.abs(p[0] - p[9]) < 1e-9, "左右対称・端は -0.8");
+  assert.ok(p.every((x) => x >= 1 && x <= 5));
+  assert.deepEqual(carPrior(1, 3), [3.4]); // 1両なら中央扱い
+});
+
+test("carEstimates starts from the prior and moves toward reports", () => {
+  const now = new Date("2026-10-02T08:00:00");
+  const base = { route: "r1", cars: 4, dow: 5, slot: 30, now };
+  const none = carEstimates({ ...base, logs: [] });
+  assert.equal(none.length, 4);
+  assert.ok(none.every((c) => c.stars === 1 && c.n === 0), "報告なし = 推定のみ");
+  // 2号車（事前は中央寄りで混雑側）に「ガラガラ」報告を 5 件 → 推定より空いている側へ
+  const logs = Array.from({ length: 5 }, (_, i) => ({ route: "r1", t: `2026-10-0${1 - 0}T07:3${i}:00`, level: 1, car: 2 }));
+  const est = carEstimates({ ...base, logs });
+  assert.ok(est[1].value < none[1].value - 1, "報告で大きく下がる");
+  assert.ok(est[1].stars >= 2);
+  assert.equal(est[1].n, 5);
+});
+
+test("carEstimates: old reports count less, other slots/routes ignored, stairs push up", () => {
+  const now = new Date("2026-10-02T08:00:00");
+  const base = { route: "r1", cars: 4, dow: 5, slot: 30, now };
+  const fresh = carEstimates({ ...base, logs: [{ route: "r1", t: "2026-10-01T07:35:00", level: 5, car: 1 }] })[0].value;
+  const old = carEstimates({ ...base, logs: [{ route: "r1", t: "2026-07-03T07:35:00", level: 5, car: 1 }] })[0].value;
+  assert.ok(fresh > old, "新しい報告ほど効く");
+  const other = carEstimates({ ...base, logs: [{ route: "r2", t: "2026-10-01T07:35:00", level: 5, car: 1 }, { route: "r1", t: "2026-10-01T18:00:00", level: 5, car: 1 }] });
+  assert.equal(other[0].n, 0, "別路線・別の時間帯は使わない");
+  const stairs = carEstimates({ ...base, logs: [], stairsCars: [1] });
+  assert.ok(stairs[0].value > carEstimates({ ...base, logs: [] })[0].value, "階段のある号車は混雑側");
+});
+
+test("parseBackup keeps a record's car (1-20)", () => {
+  const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }], logs: [
+    { route: "r1", t: "2026-10-01T07:40:00", level: 3, car: 5 },
+    { route: "r1", t: "2026-10-01T07:41:00", level: 3, car: 0 },
+  ] }));
+  assert.equal(d.logs[0].car, 5);
+  assert.equal(d.logs[1].car, undefined);
 });
