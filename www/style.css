@@ -94,6 +94,7 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .recap { margin: 0; padding-left: 1.2em; line-height: 1.8; }
 .reco-when { margin: 0; color: var(--muted); font-size: .9rem; }
 .legend { margin: 6px 0 0; font-size: .75rem; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.legend .link-btn { margin: 0; padding: 0; font-size: .75rem; }
 .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 .toast-moods { flex-basis: 100%; display: flex; align-items: center; gap: 6px; }
 .toast-moods button { font-size: 1.2rem; padding: 2px 8px; }

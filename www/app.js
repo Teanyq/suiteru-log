@@ -336,7 +336,8 @@ function renderCars() {
     el("div", { className: "train mini", role: "img", ariaLabel: est.map((c) => `${c.car}号車 ${LEVELS[Math.round(c.value) - 1][1]}`).join("、") },
       ...est.map((c) => el("div", { className: `car-cell${c.stars === 1 ? " guess" : ""}${bests.includes(c) ? " best" : ""}`, style: `background:${color(c.value)}` },
         el("b", { textContent: c.car }), el("small", { textContent: "★".repeat(c.stars) })))),
-    el("p", { className: "legend" }, el("i", { style: "background:var(--l1)" }), "空いてる ", el("i", { style: "background:var(--l5)" }), "混んでる　★ 報告の多さ"),
+    el("p", { className: "legend" }, el("i", { style: "background:var(--l1)" }), "空いてる ", el("i", { style: "background:var(--l5)" }), "混んでる　★ 報告の多さ　",
+      el("button", { type: "button", className: "link-btn", textContent: `${route.cars ?? 10}両編成（変える）`, onclick: pickCars })),
     el("p", { className: "note", textContent: basis }),
     moods.length ? el("p", { className: "nicknames", textContent: `今日の号車: ${moods.map((m) => `${m.car}号車＝${MOODS[m.mood][0]}${nicknameOf(m.mood)}（${m.n}人）`).join("、")}` }) : "",
   );
@@ -475,10 +476,30 @@ async function pickRoute(title, onDone) {
   showStep({ title, foot: manual, items: REGIONS.map((region) => ({ label: region, onPick: () =>
     showStep({ title: region, items: companiesIn(lines, region).map((company) => ({ label: companyLabel(company), onPick: () =>
       showStep({ title: companyLabel(company), items: linesOf(lines, region, company).map((line) => ({ label: lineLabel(line), sub: `${line.s.length}駅`, onPick: () =>
-        showStep({ title: `${lineLabel(line)}（どちら方面？）`, items: directionsOf(line).map((name, i) => ({ label: name, onPick: () => {
-          onDone(name, { c: line.c, l: line.l }, line.s.length < 2 ? null : i === 0 ? line.s.at(-1) : line.s[0]);
-          closePicker();
-        } })) }) })) }) })) }) })) });
+        showStep({ title: `${lineLabel(line)}（どちら方面？）`, items: directionsOf(line).map((name, i) => ({ label: name, onPick: () =>
+          // 両数で「端の号車」が変わるので、最後に 1 タップで聞く
+          showStep(carsStep((cars) => {
+            onDone(name, { c: line.c, l: line.l }, line.s.length < 2 ? null : i === 0 ? line.s.at(-1) : line.s[0], cars);
+            closePicker();
+          })) })) }) })) }) })) }) })) });
+}
+const CAR_COUNTS = [4, 6, 8, 10, 11, 12, 15];
+const carsStep = (done) => ({ title: "何両編成？", items: [
+  ...CAR_COUNTS.map((n) => ({ label: `${n}両`, onPick: () => done(n) })),
+  { label: "わからない", sub: "10両で始めます（あとで変えられます）", onPick: () => done(10) },
+] });
+function pickCars() {
+  const route = currentRoute();
+  pickerStack.length = 0;
+  $("picker").showModal();
+  showStep(carsStep((n) => {
+    route.cars = n;
+    if (route.lastCar > n) delete route.lastCar;
+    save();
+    closePicker();
+    render();
+    toast(`${n}両編成にしました`);
+  }));
 }
 
 // 乗換メモ: 駅 → 号車（電車の絵）→ ドア → 目的、をタップで選ぶ
@@ -543,18 +564,19 @@ async function pickMemo() {
 }
 $("memo-add").addEventListener("click", pickMemo);
 
-$("add-route").addEventListener("click", () => pickRoute("路線を追加", (name, line, dir) => {
+$("add-route").addEventListener("click", () => pickRoute("路線を追加", (name, line, dir, cars) => {
   const id = `r${Date.now()}`;
-  data.routes.push({ id, name, ...(line ? { line } : {}), ...(dir ? { dir } : {}) });
+  data.routes.push({ id, name, ...(line ? { line } : {}), ...(dir ? { dir } : {}), ...(cars ? { cars } : {}) });
   data.current = id;
   save();
   render();
   toast(`「${name}」を追加しました`);
 }));
 // 選び直しても記録は残る（同じ路線 ID のまま名前と路線情報だけ変える）
-$("rename-route").addEventListener("click", () => pickRoute("路線を選び直す", (name, line, dir) => {
+$("rename-route").addEventListener("click", () => pickRoute("路線を選び直す", (name, line, dir, cars) => {
   const r = data.routes.find((x) => x.id === data.current);
   r.name = name;
+  if (cars) { r.cars = cars; if (r.lastCar > cars) delete r.lastCar; }
   if (dir) r.dir = dir; else delete r.dir;
   if (line) r.line = line; else delete r.line;
   save();
