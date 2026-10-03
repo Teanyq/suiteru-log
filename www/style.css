@@ -39,7 +39,7 @@ button { cursor: pointer; }
 }
 .levels button:active { transform: scale(.98); }
 .levels .n { font-size: 1.4rem; width: 1.5em; text-align: center; }
-#toast { min-height: 1.5em; margin: 10px 0 0; color: var(--muted); font-size: .9rem; display: flex; align-items: center; gap: 8px; }
+#toast { min-height: 1.5em; margin: 10px 0 0; color: var(--muted); font-size: .9rem; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 #toast span { white-space: pre-line; }
 #toast button { flex: none; white-space: nowrap; }
 #toast button, #history-list button { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 10px; font-size: .85rem; }
@@ -92,10 +92,14 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .tags button { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; font-size: .85rem; }
 .tags button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
 .recap { margin: 0; padding-left: 1.2em; line-height: 1.8; }
+.reco-when { margin: 0; color: var(--muted); font-size: .9rem; }
+.legend { margin: 6px 0 0; font-size: .75rem; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.toast-moods { flex-basis: 100%; display: flex; align-items: center; gap: 6px; }
+.toast-moods button { font-size: 1.2rem; padding: 2px 8px; }
+.more { margin-top: 12px; }
+.more summary, #history summary { color: var(--muted); font-size: .85rem; cursor: pointer; }
 .nicknames { margin: 6px 0 0; font-size: .85rem; font-weight: 600; }
-#moods { flex-wrap: wrap; }
-.guess { flex-wrap: wrap; margin: 10px 0 0; }
-.guess .tags-hint { flex-basis: 100%; }
 .tags-hint { color: var(--muted); font-size: .75rem; }
 .nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; padding: 12px 16px; border-radius: 12px; background: var(--card); border: 2px solid var(--accent); font-size: .9rem; }
 .nudge[hidden] { display: none; }

@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, MOODS, nicknameOf, monthRecap } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -78,8 +78,9 @@ function renderForecast() {
 }
 
 let toastTimer;
-function toast(msg, undo) {
+function toast(msg, undo, extra) {
   const kids = [el("span", { textContent: msg })];
+  if (extra) kids.push(extra);
   if (undo) kids.push(el("button", { type: "button", textContent: "取り消す", onclick: () => { undo(); toast("取り消しました"); } }));
   $("toast").replaceChildren(...kids);
   clearTimeout(toastTimer);
@@ -273,7 +274,7 @@ function renderRecap() {
   const items = [
     `記録 ${r.rides} 回${r.empty ? `（空いてた ${r.empty} 回）` : ""}`,
     r.crowded ? `ぎゅうぎゅうに耐えた ${r.crowded} 回。おつかれさま` : "",
-    r.guessN ? `号車予想 ${r.guessHit}/${r.guessN} 的中` : "",
+    r.guessN ? `アプリの予想との答え合わせ ${r.guessHit}/${r.guessN} 的中` : "",
     r.mood ? `いちばん多かった気分: ${MOODS[r.mood][0]}${MOODS[r.mood][1]}` : "",
     data.share && data.helped?.n ? `あなたの報告が、この30日で ${data.helped.n} 人の号車選びに使われました` : "",
   ].filter(Boolean);
@@ -303,6 +304,7 @@ const currentRoute = () => data.routes.find((r) => r.id === data.current);
 // 乗換メモで階段・エスカレーターがある号車（どの駅かは問わず、その路線で混みやすい号車とみなす）
 const stairsCarsOf = (routeId) => [...new Set(data.memos.filter((m) => m.route === routeId && m.car && m.tags?.some((t) => t === "stairs" || t === "escalator")).map((m) => m.car))];
 
+const sharedHitOf = (route, d) => sharedCache.get(new URLSearchParams({ c: route.line?.c ?? "", l: route.line?.l ?? "", dir: dirOf(route) ?? "", daytype: isWeekend(d.getDay()) ? "we" : "wd", slot: String(slotOf(localIso(d))) }).toString());
 function carsAt(route, d, shared = []) {
   const est = carEstimates({ route: route.id, cars: route.cars ?? 10, dow: d.getDay(), slot: slotOf(localIso(d)), now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id), shared });
   const min = Math.min(...est.map((c) => c.value));
@@ -314,7 +316,7 @@ function renderCars() {
   if (!route) return;
   const d = timeInput() ?? new Date();
   const slot = slotOf(localIso(d)), daytype = isWeekend(d.getDay()) ? "we" : "wd";
-  const hit = sharedCache.get(new URLSearchParams({ c: route.line?.c ?? "", l: route.line?.l ?? "", dir: dirOf(route) ?? "", daytype, slot: String(slot) }).toString());
+  const hit = sharedHitOf(route, d);
   const shared = hit?.cars ?? [], moods = hit?.moods ?? [];
   if (data.share && route.line && !renderCars.loading) {
     renderCars.loading = true;
@@ -324,14 +326,17 @@ function renderCars() {
   const best = bests[0];
   const reports = est.reduce((n, c) => n + c.n, 0), sharedN = est.reduce((n, c) => n + c.shared, 0);
   const parts = [sharedN ? `みんなの報告 ${sharedN} 件` : "", reports ? `あなたの記録 ${reports} 件` : ""].filter(Boolean);
-  const basis = parts.length
-    ? `${slotLabel(slot)}台・${parts.join("と")}と一般的な傾向から推定`
-    : "まだ号車つきの記録がないので、一般的な傾向（端の号車ほど空きやすい）から推定しています";
+  const basis = best.stars === 1
+    ? "まだ報告が少ないので、一般的な傾向（端の号車ほど空きやすい）からの予想です"
+    : `${parts.join("と")}から出しています`;
+  const dir = dirOf(route);
   $("car-reco").replaceChildren(
-    el("p", { className: "reco-head" }, "おすすめは ", el("strong", { textContent: bests.map((c) => `${c.car}号車`).join("・") }), best.stars === 1 ? el("span", { className: "badge", textContent: "推定" }) : ""),
+    el("p", { className: "reco-when", textContent: `${d.getHours()}時ごろ${dir ? `・${dir}方面` : ""}は` }),
+    el("p", { className: "reco-head" }, el("strong", { textContent: bests.map((c) => `${c.car}号車`).join("・") }), " が空いてそう"),
     el("div", { className: "train mini", role: "img", ariaLabel: est.map((c) => `${c.car}号車 ${LEVELS[Math.round(c.value) - 1][1]}`).join("、") },
       ...est.map((c) => el("div", { className: `car-cell${c.stars === 1 ? " guess" : ""}${bests.includes(c) ? " best" : ""}`, style: `background:${color(c.value)}` },
         el("b", { textContent: c.car }), el("small", { textContent: "★".repeat(c.stars) })))),
+    el("p", { className: "legend" }, el("i", { style: "background:var(--l1)" }), "空いてる ", el("i", { style: "background:var(--l5)" }), "混んでる　★ 報告の多さ"),
     el("p", { className: "note", textContent: basis }),
     moods.length ? el("p", { className: "nicknames", textContent: `今日の号車: ${moods.map((m) => `${m.car}号車＝${MOODS[m.mood][0]}${nicknameOf(m.mood)}（${m.n}人）`).join("、")}` }) : "",
   );
@@ -355,7 +360,7 @@ function renderPoints() {
     g.n ? el("small", { textContent: ` 予想的中 ${g.hit}/${g.n}` }) : "");
 }
 
-const render = () => { renderRoutes(); renderShare(); renderPoints(); renderGuess(); renderRecap(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+const render = () => { renderRoutes(); renderShare(); renderPoints(); renderRecap(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 // 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
 // Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）
@@ -368,59 +373,39 @@ function record(level, label) {
   const log = { route: data.current, t: localIso(d), level };
   const car = currentRoute()?.lastCar;
   if (car) log.car = car;
-  const guess = currentGuess();
-  if (guess) { log.guess = guess; delete data.guess; }
+  // アプリの予想（この号車の推定）を記録に残し、自動で答え合わせ（入力なし）
+  const route = currentRoute();
+  const pred = car ? Math.min(5, Math.max(1, Math.round(carsAt(route, d, sharedHitOf(route, d)?.cars).est[car - 1]?.value ?? 0))) : 0;
+  if (pred) log.pred = pred;
   const tags = [...activeTags, ...(data.periodMode ? ["period"] : [])];
   if (tags.length) log.tags = tags;
-  if (activeMood) log.mood = activeMood;
   const before = pointsOf(data.logs);
   data.logs.push(log);
   const gained = pointsOf(data.logs) - before;
-  const payload = data.share && reportPayload(data.device, currentRoute(), log);
-  if (payload) { data.outbox.push(payload); flushOutbox(); }
+  const payload = data.share && reportPayload(data.device, route, log);
+  // 気分スタンプを押す時間を待ってから送る（押したらすぐ送る。アプリを閉じても次回送る）
+  if (payload) { data.outbox.push(payload); setTimeout(flushOutbox, 10000); }
   save();
   buzz();
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
   setTags([]); // 印は1回ごと
-  setMood(null);
   refreshReminder();
   render();
-  const hit = guessHit(guess, level);
-  const cheer = (hit === null ? "" : hit ? "予想的中！+5pt　" : "予想ハズレ…次こそ　") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
-  toast(`${$("time").value}${car ? ` ${car}号車` : ""} に「${label}」を記録 +${gained}pt${note}
-${cheer}`, () => removeLog(log));
+  const check = pred ? `アプリの予想「${LEVELS[pred - 1][1]}」→ ${predHit(log) ? "的中！+5pt" : level < pred ? "予想より空いてた！" : "予想より混んでた…"}
+` : "";
+  const cheer = cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
+  // 記録のあとに気分スタンプ（任意）。押せば報告に添えて、号車のあだ名に使う
+  const moods = el("span", { className: "toast-moods" }, "いまの気分は？", ...Object.entries(MOODS).map(([key, [emoji, word]]) =>
+    el("button", { type: "button", textContent: emoji, ariaLabel: word, onclick: () => {
+      log.mood = key;
+      if (payload) payload.mood = key;
+      save();
+      flushOutbox();
+      toast(`気分「${emoji}${word}」を添えました`);
+    } })));
+  toast(`${car ? `${car}号車 ` : ""}「${label}」を記録 +${gained}pt${note}
+${check}${cheer}`, () => removeLog(log), moods);
 }
-
-// 号車予想ゲーム: 予想は今日・この路線だけ有効。もう一度押すと取り消し
-const currentGuess = () => (data.guess?.route === data.current && data.guess.day === todayKey() ? data.guess.v : undefined);
-function renderGuess() {
-  const g = currentGuess();
-  for (const b of $("guess").querySelectorAll("button")) b.ariaPressed = String(b.dataset.v === g);
-}
-$("guess").append(...[["low", "空いてると思う"], ["high", "混んでると思う"]].map(([v, label]) => {
-  const b = el("button", { type: "button", textContent: label, ariaPressed: "false" });
-  b.dataset.v = v;
-  b.onclick = () => {
-    if (currentGuess() === v) delete data.guess;
-    else data.guess = { route: data.current, day: todayKey(), v };
-    save();
-    renderGuess();
-  };
-  return b;
-}));
-
-// 気分スタンプ（任意・1回ごと）。共有オンなら報告に添えて、号車のあだ名に使う
-let activeMood = null;
-function setMood(m) {
-  activeMood = m;
-  for (const b of $("moods").querySelectorAll("button")) b.ariaPressed = String(b.dataset.mood === m);
-}
-$("moods").append(...Object.entries(MOODS).map(([key, [emoji, label]]) => {
-  const b = el("button", { type: "button", textContent: `${emoji}${label}`, ariaPressed: "false" });
-  b.dataset.mood = key;
-  b.onclick = () => setMood(activeMood === key ? null : key);
-  return b;
-}), el("span", { className: "tags-hint", textContent: "← 気分も添える（任意）" }));
 
 const activeTags = new Set();
 function setTags(list) {

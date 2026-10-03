@@ -79,11 +79,12 @@ export function parseBackup(text) {
   const ids = new Set(routes.map((r) => r.id));
   const logs = (Array.isArray(raw.logs) ? raw.logs : [])
     .filter((l) => ids.has(l?.route) && T_RE.test(l?.t) && Number.isInteger(l?.level) && l.level >= 1 && l.level <= 5)
-    .map(({ route, t, level, tags, car, guess, mood }) => {
+    .map(({ route, t, level, tags, car, guess, pred, mood }) => {
       const ok = Array.isArray(tags) ? [...new Set(tags)].filter((x) => Object.hasOwn(TAGS, x)) : [];
       const log = ok.length ? { route, t, level, tags: ok } : { route, t, level };
       if (Number.isInteger(car) && car >= 1 && car <= 20) log.car = car; // v2: 号車つきの報告
-      if (guess === "low" || guess === "high") log.guess = guess; // 号車予想ゲーム
+      if (guess === "low" || guess === "high") log.guess = guess; // 以前の手動の号車予想
+      if (Number.isInteger(pred) && pred >= 1 && pred <= 5) log.pred = pred; // アプリの予想（自動の答え合わせ）
       if (Object.hasOwn(MOODS, mood)) log.mood = mood; // 気分スタンプ
       return log;
     });
@@ -330,7 +331,7 @@ export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [
 export function pointsOf(logs) {
   let pts = 0;
   // 号車つき +5、ぎゅうぎゅう側（4〜5）は「戦士ボーナス」+10（つらい日ほど報われる）
-  for (const l of logs) pts += 10 + (l.car ? 5 : 0) + (l.level >= 4 ? 10 : 0) + (guessHit(l.guess, l.level) ? 5 : 0);
+  for (const l of logs) pts += 10 + (l.car ? 5 : 0) + (l.level >= 4 ? 10 : 0) + (predHit(l) ? 5 : 0);
   // 平日の連続記録 5 日ごとに +50（土日はまたいでも途切れない）
   const days = [...new Set(logs.map((l) => l.t.slice(0, 10)))]
     .filter((k) => !isWeekend(new Date(`${k}T12:00:00`).getDay())).sort();
@@ -353,11 +354,13 @@ const TITLES = [[0, "見習い乗客"], [100, "通勤ルーキー"], [300, "号�
 export const MOODS = { sleepy: ["😪", "眠い", "おねむ号"], fight: ["💪", "がんばる", "がんばり号"], tired: ["🫠", "だるい", "ぐったり号"], happy: ["😊", "ごきげん", "ごきげん号"] };
 export const nicknameOf = (mood) => MOODS[mood]?.[2];
 
-// 号車予想ゲーム: 乗る前に「空いてる（1〜2）／混んでる（4〜5）」を予想し、記録で答え合わせ。予想なしは null
+// 予想の答え合わせ。いまはアプリの予想（pred: 記録した号車の推定混雑度）と自動で比べる。
+// 以前の手動予想（guess: 空いてる 1〜2／混んでる 4〜5）も数える。予想なしは null
 export const guessHit = (guess, level) => (guess === "low" ? level <= 2 : guess === "high" ? level >= 4 : null);
+export const predHit = (l) => (l.guess ? guessHit(l.guess, l.level) : l.pred ? l.pred === l.level : null);
 export function guessStats(logs) {
-  const g = logs.filter((l) => l.guess);
-  return { n: g.length, hit: g.filter((l) => guessHit(l.guess, l.level)).length };
+  const g = logs.filter((l) => predHit(l) !== null);
+  return { n: g.length, hit: g.filter(predHit).length };
 }
 
 // 今月のふりかえり（端末内の記録だけで出す）

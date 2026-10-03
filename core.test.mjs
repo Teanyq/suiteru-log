@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, MOODS, nicknameOf, monthRecap } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -442,4 +442,17 @@ test("monthRecap counts this month's rides, empty/crowded rides, guesses and the
     month: 10, rides: 3, empty: 1, crowded: 1, guessN: 2, guessHit: 1, mood: "sleepy",
   });
   assert.equal(monthRecap(logs, new Date("2026-11-01T12:00:00")).rides, 0);
+});
+
+test("auto prediction: the app's predicted level is checked against the record, +5pt on an exact hit", () => {
+  const rec = (level, extra) => ({ route: "r1", t: "2026-09-28T07:40:00", level, car: 1, ...extra });
+  assert.equal(predHit(rec(2, { pred: 2 })), true);
+  assert.equal(predHit(rec(3, { pred: 2 })), false);
+  assert.equal(predHit(rec(3, {})), null);
+  assert.equal(predHit(rec(1, { guess: "low" })), true); // 以前の手動予想も数える
+  assert.equal(pointsOf([rec(2, { pred: 2 })]), 20);
+  assert.deepEqual(guessStats([rec(2, { pred: 2 }), rec(3, { pred: 2 }), rec(3, {})]), { n: 2, hit: 1 });
+  const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }], logs: [{ ...rec(2, { pred: 2 }) }, { ...rec(2, { pred: 9 }) }] }));
+  assert.equal(d.logs[0].pred, 2);
+  assert.equal(d.logs[1].pred, undefined);
 });

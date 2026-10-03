@@ -21,7 +21,7 @@
 <body>
 <header>
   <h1>すいてるログ</h1>
-  <p class="tagline">乗った電車の混み具合を押すだけ。たまると空いている時間がわかります。<a href="#h-help">使い方</a></p>
+  <p class="tagline">乗る前に、空いてる号車がわかる。乗ったら混み具合をワンタップ。<a href="#h-help">使い方</a></p>
   <div class="route-row">
     <label for="route" class="sr-only">路線</label>
     <select id="route"></select>
@@ -40,13 +40,20 @@
       <div class="data-row"><button id="share-yes" class="primary-btn" type="button">共有する</button><button id="share-no" type="button">今はしない</button></div>
     </div>
     <div id="car-reco"></div>
-    <div class="tags guess" id="guess" role="group" aria-label="号車予想（当たると +5pt）"><span class="tags-hint">乗る前に予想（当たると+5pt）</span></div>
   </section>
 
   <section aria-labelledby="h-rec">
-    <h2 id="h-rec">いまの混み具合</h2>
+    <h2 id="h-rec">乗ったら、混み具合をタップ</h2>
     <div id="streak" class="streak"></div>
     <p id="points" class="points"></p>
+    <div class="car-pick-wrap">
+      <span class="car-pick-label">乗っている号車（前回の号車を覚えています）</span>
+      <div id="car-pick" class="car-pick" role="group" aria-label="乗っている号車"></div>
+    </div>
+    <div class="levels" id="levels"></div>
+    <p id="toast" role="status" aria-live="polite"></p>
+    <details id="more" class="more">
+      <summary>くわしく（時刻をずらす・遅延・雨・試験期間）</summary>
     <div class="time-row">
       <label for="time">乗った時刻</label>
       <input id="time" type="time" step="60">
@@ -59,14 +66,8 @@
     </div>
     <p id="forecast" class="forecast" aria-live="polite"></p>
     <div class="tags" id="tags" role="group" aria-label="今回の状況（集計から外す）"></div>
-    <div class="tags" id="moods" role="group" aria-label="いまの気分（任意）"></div>
     <label class="period"><input id="period" type="checkbox"> 試験・休暇の期間中（集計に入れない）</label>
-    <div class="car-pick-wrap">
-      <span class="car-pick-label">乗っている号車</span>
-      <div id="car-pick" class="car-pick" role="group" aria-label="乗っている号車"></div>
-    </div>
-    <div class="levels" id="levels"></div>
-    <p id="toast" role="status" aria-live="polite"></p>
+    </details>
     <details id="history">
       <summary>最近の記録</summary>
       <ul id="history-list"></ul>
@@ -108,8 +109,9 @@
     <h2 id="h-help">使い方</h2>
     <ol class="help">
       <li>上の「変更」で自分の路線を選ぶ（エリア → 会社 → 路線 → 方面をタップ）。帰りの路線は「＋」で別に追加すると精度が上がります</li>
-      <li>電車に乗ったら混み具合のボタンを1回押す。乗る前に開いたら「-5分」などで時刻を合わせる</li>
-      <li>1〜2週間続けると「今日のおすすめ」に空いている時間帯が出ます</li>
+      <li>乗る前に「空いてる号車」を見て、その号車に乗る</li>
+      <li>乗ったら混み具合のボタンを1回押す（号車は前回のを覚えています）。アプリの予想との答え合わせと、気分スタンプ（任意）が出ます</li>
+      <li>報告が増えるほど、号車の予想が正確になります。時刻をずらす・遅延や雨の日は「くわしく」から</li>
     </ol>
     <details>
       <summary>よくある質問</summary>
