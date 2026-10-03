@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseReport, aggregate, moodsOf, dayStartJst, DAILY_CAP } from "./api.mjs";
+import { parseReport, aggregate, moodsOf, dayStartJst, DAILY_CAP, nickOf, rankingOf } from "./api.mjs";
 
 const ok = { device: "d-123", line: { c: "東急電鉄", l: "田園都市線" }, dir: "渋谷", daytype: "wd", slot: 30, car: 5, level: 4 };
 
@@ -70,4 +70,20 @@ test("aggregate caps one device at weight 2 per car (no flooding)", () => {
   assert.equal(a.w, 3);
   assert.equal(a.mean, 3.67); // (5*2 + 1*1) / 3
   assert.ok(DAILY_CAP >= 10);
+});
+
+test("nickOf: same device always gets the same friendly name, and it never contains the id", () => {
+  assert.equal(nickOf("abc-123"), nickOf("abc-123"));
+  assert.match(nickOf("abc-123"), /^\S+\S$/);
+  assert.ok(!nickOf("abc-123").includes("abc"));
+  assert.ok(new Set(["a", "b", "c", "d", "e", "f", "g", "h"].map(nickOf)).size > 3, "ばらける");
+});
+
+test("rankingOf: top 3 by report count plus my own rank (ties share a rank)", () => {
+  const rows = [{ device: "a", n: 9 }, { device: "b", n: 5 }, { device: "me", n: 5 }, { device: "c", n: 2 }, { device: "d", n: 1 }];
+  const r = rankingOf(rows, "me");
+  assert.deepEqual(r.top.map((t) => [t.rank, t.n]), [[1, 9], [2, 5], [2, 5]]);
+  assert.equal(r.top[0].name, nickOf("a"));
+  assert.deepEqual(r.me, { rank: 2, n: 5, name: nickOf("me"), of: 5 });
+  assert.equal(rankingOf(rows, "nobody").me, null);
 });

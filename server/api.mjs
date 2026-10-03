@@ -87,3 +87,23 @@ export function moodsOf(rows) {
     return { car, mood, n };
   }).filter((m) => m.n >= MOOD_MIN_PEOPLE).sort((a, b) => a.car - b.car);
 }
+
+// 自動のニックネーム（入力なし）。端末 ID から決まり、ID そのものは出さない
+const ADJ = ["まったり", "きびきび", "ねむねむ", "のんびり", "しゃきっと", "ぽかぽか", "すいすい", "わくわく", "こつこつ", "ほっこり", "てきぱき", "ふわふわ"];
+const ANIMAL = ["パンダ", "ペンギン", "カワウソ", "タヌキ", "キツネ", "コアラ", "ハリネズミ", "アルパカ", "ラッコ", "シマエナガ", "カピバラ", "フクロウ"];
+export function nickOf(device) {
+  let h = 2166136261;
+  for (const ch of device) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return ADJ[h % ADJ.length] + ANIMAL[Math.floor(h / ADJ.length) % ANIMAL.length];
+}
+
+// 路線ごとの報告数ランキング。rows は件数の多い順でなくてもよい。同数は同じ順位
+export function rankingOf(rows, me) {
+  const sorted = [...rows].sort((a, b) => b.n - a.n);
+  const ranked = sorted.map((r) => ({ ...r, rank: sorted.findIndex((x) => x.n === r.n) + 1 }));
+  const mine = ranked.find((r) => r.device === me);
+  return {
+    top: ranked.slice(0, 3).map(({ device, n, rank }) => ({ rank, n, name: nickOf(device) })),
+    me: mine ? { rank: mine.rank, n: mine.n, name: nickOf(me), of: ranked.length } : null,
+  };
+}

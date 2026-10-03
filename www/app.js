@@ -249,7 +249,7 @@ async function loadShared(route, daytype, slot) {
   try {
     const res = await fetch(`${API}/v1/cars?${q}`);
     const body = res.ok ? await res.json() : {};
-    const entry = { at: Date.now(), cars: body.cars ?? [], moods: body.moods ?? [] };
+    const entry = { at: Date.now(), cars: body.cars ?? [], moods: body.moods ?? [], riders: body.riders ?? [] };
     sharedCache.set(key, entry);
     return entry;
   } catch { return null; }
@@ -266,6 +266,27 @@ async function loadHelped() {
     renderRecap();
   } catch {}
 }
+// 路線ごとの報告ランキング（30 日・自動ニックネーム）。1 日 1 回だけ聞く
+function rankText() {
+  const route = currentRoute(), r = data.rank;
+  if (!data.share || !route?.line || r?.key !== `${route.line.c}|${route.line.l}` || !r.top?.length) return "";
+  const top = r.top.map((t) => `${t.rank}位 ${t.name}（${t.n}件）`).join("・");
+  return `${route.line.l}の報告ランキング（30日）: ${top}／${r.me ? `あなた「${r.me.name}」は ${r.me.of}人中 ${r.me.rank}位` : "報告するとあなたも載ります"}`;
+}
+async function loadRank() {
+  const route = currentRoute();
+  if (!data.share || !route?.line || !navigator.onLine) return;
+  const key = `${route.line.c}|${route.line.l}`;
+  if (data.rank?.key === key && data.rank.day === todayKey()) return;
+  try {
+    const res = await fetch(`${API}/v1/rank?${new URLSearchParams({ c: route.line.c, l: route.line.l, device: data.device })}`);
+    if (!res.ok) return;
+    data.rank = { key, day: todayKey(), ...(await res.json()) };
+    save();
+    renderRecap();
+  } catch {}
+}
+
 function renderRecap() {
   const r = monthRecap(data.logs, new Date());
   $("recap-sec").hidden = !r.rides;
@@ -277,9 +298,11 @@ function renderRecap() {
     r.guessN ? `アプリの予想との答え合わせ ${r.guessHit}/${r.guessN} 的中` : "",
     r.mood ? `いちばん多かった気分: ${MOODS[r.mood][0]}${MOODS[r.mood][1]}` : "",
     data.share && data.helped?.n ? `あなたの報告が、この30日で ${data.helped.n} 人の号車選びに使われました` : "",
+    rankText(),
   ].filter(Boolean);
   $("recap").replaceChildren(...items.map((t) => el("li", { textContent: t })));
   loadHelped();
+  loadRank();
 }
 
 function renderShare() {
@@ -317,7 +340,7 @@ function renderCars() {
   const d = timeInput() ?? new Date();
   const slot = slotOf(localIso(d)), daytype = isWeekend(d.getDay()) ? "we" : "wd";
   const hit = sharedHitOf(route, d);
-  const shared = hit?.cars ?? [], moods = hit?.moods ?? [];
+  const shared = hit?.cars ?? [], moods = hit?.moods ?? [], riders = hit?.riders ?? [];
   if (data.share && route.line && !renderCars.loading) {
     renderCars.loading = true;
     loadShared(route, daytype, slot).then((r) => { renderCars.loading = false; if (r && r !== hit && (r.cars.length || r.moods.length)) renderCars(); });
@@ -339,6 +362,7 @@ function renderCars() {
     el("p", { className: "legend" }, el("i", { style: "background:var(--l1)" }), "空いてる ", el("i", { style: "background:var(--l5)" }), "混んでる　★ 報告の多さ　",
       el("button", { type: "button", className: "link-btn", textContent: `${route.cars ?? 10}両編成（変える）`, onclick: pickCars })),
     el("p", { className: "note", textContent: basis }),
+    riders.length ? el("p", { className: "nicknames", textContent: `この30分に乗っていた仲間: ${riders.map((r) => `${r.car}号車 ${r.n}人`).join("、")}` }) : "",
     moods.length ? el("p", { className: "nicknames", textContent: `今日の号車: ${moods.map((m) => `${m.car}号車＝${MOODS[m.mood][0]}${nicknameOf(m.mood)}（${m.n}人）`).join("、")}` }) : "",
   );
 }
@@ -394,7 +418,8 @@ function record(level, label) {
   render();
   const check = pred ? `アプリの予想「${LEVELS[pred - 1][1]}」→ ${predHit(log) ? "的中！+5pt" : level < pred ? "予想より空いてた！" : "予想より混んでた…"}
 ` : "";
-  const cheer = cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
+  const mates = car && sharedHitOf(route, d)?.riders?.find((r) => r.car === car)?.n;
+  const cheer = (mates ? `いま${car}号車には仲間が${mates}人。` : "") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
   // 記録のあとに気分スタンプ（任意）。押せば報告に添えて、号車のあだ名に使う
   const moods = el("span", { className: "toast-moods" }, "いまの気分は？", ...Object.entries(MOODS).map(([key, [emoji, word]]) =>
     el("button", { type: "button", textContent: emoji, ariaLabel: word, onclick: () => {
