@@ -311,7 +311,8 @@ function renderRecap() {
 function renderShare() {
   $("share").checked = !!data.share;
   $("device-id").textContent = data.device.slice(0, 8);
-  $("share-ask").hidden = data.share !== undefined; // まだ聞いていない時だけ出す
+  // まだ聞いていない時だけ、1 回記録してから出す（何のアプリか分かる前にお願いしない）
+  $("share-ask").hidden = data.share !== undefined || !data.logs.length;
 }
 function setShare(on) {
   data.share = on;
@@ -609,7 +610,7 @@ $("add-route").addEventListener("click", () => pickRoute("路線を追加", (nam
   toast(`「${name}」を追加しました`);
 }));
 // 選び直しても記録は残る（同じ路線 ID のまま名前と路線情報だけ変える）
-$("rename-route").addEventListener("click", () => pickRoute("路線を選び直す", (name, line, dir, cars) => {
+$("rename-route").addEventListener("click", () => pickRoute(data.routes[0].line || data.logs.length ? "路線を選び直す" : "いつも乗る路線を選んでください", (name, line, dir, cars) => {
   const r = data.routes.find((x) => x.id === data.current);
   r.name = name;
   if (cars) { r.cars = cars; if (r.lastCar > cars) delete r.lastCar; }
@@ -727,6 +728,9 @@ window.addEventListener("online", flushOutbox);
 autoRoute();
 setTime();
 render();
+
+// 初めて開いた人（路線が初期の「いつもの路線」のまま・記録なし）には、最初に路線選びを出す
+if (data.routes.length === 1 && !data.routes[0].line && !data.logs.length && !recParam(location.search)) $("rename-route").click();
 
 // ./?rec=N（Android のアイコン長押しショートカット等）で開いたら即記録。
 // 先に URL から外すので、再読み込みや「戻る」で二重に記録されない。取消はトーストから
