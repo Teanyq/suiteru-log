@@ -646,7 +646,7 @@ const cancelReminder = () => notif.cancel({ notifications: REMINDER_IDS.map((id)
 function renderReminder() {
   if (!notif) return;
   $("remind").textContent = "通知をセット";
-  $("remind-note").textContent = data.reminder ? `平日 ${data.reminder} に通知します。` : "平日のこの時刻に「今日の混み具合は？」と通知します。";
+  $("remind-note").textContent = data.reminder ? `平日 ${data.reminder} に、今日のおすすめ号車を通知します。` : "平日のこの時刻に、今日のおすすめ号車を通知します。";
   $("remind-off").hidden = !data.reminder;
   if (data.reminder) $("remind-time").value = data.reminder;
 }
