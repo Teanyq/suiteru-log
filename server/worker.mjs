@@ -20,6 +20,8 @@ export default {
     }
 
     if (url.pathname === "/v1/reports" && req.method === "POST") {
+      const ip = req.headers.get("CF-Connecting-IP") ?? "";
+      if (env.POST_LIMIT && !(await env.POST_LIMIT.limit({ key: ip })).success) return json({ ok: false, reason: "too_many" }, 429, cors);
       if (Number(req.headers.get("Content-Length") ?? 0) > MAX_BODY) return json({ ok: false }, 413, cors);
       let body;
       try { body = JSON.parse((await req.text()).slice(0, MAX_BODY)); } catch { return json({ ok: false }, 400, cors); }
@@ -45,7 +47,8 @@ export default {
       const device = (q.get("device") ?? "").slice(0, 64);
       const day = new Date(dayStartJst(now) + 9 * 3600000).toISOString().slice(0, 10);
       // 「あなたの報告が◯人の役に立った」用: 誰が・どの枠を見たかを 1 日 1 行だけ残す（HELPED_DAYS を過ぎたら消す）
-      if (device) {
+      // 報告したことのある端末だけ数える（でたらめな ID で見に来られても書き込みが増えない）
+      if (device && await env.DB.prepare("SELECT 1 FROM reports WHERE device = ? LIMIT 1").bind(device).first()) {
         await env.DB.batch([
           env.DB.prepare("INSERT OR IGNORE INTO views (line, dir, daytype, slot, day, device) VALUES (?, ?, ?, ?, ?, ?)").bind(p.line, p.dir, p.daytype, slot, day, device),
           env.DB.prepare("DELETE FROM views WHERE day < ?").bind(new Date(now - (HELPED_DAYS + 1) * 86400000).toISOString().slice(0, 10)),

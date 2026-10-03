@@ -6,5 +6,9 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "suiteru-reports", "database_id": "bbdc25da-4276-4da3-a7a0-88ec962aee07" }
   ],
+  // 同じ IP からの報告を 1 分あたり 20 件まで（ID を作り替えた大量投稿で無料枠を使い切られないように。IP は保存しない）
+  "ratelimits": [
+    { "name": "POST_LIMIT", "namespace_id": "1001", "simple": { "limit": 20, "period": 60 } }
+  ],
   "observability": { "enabled": true }
 }
