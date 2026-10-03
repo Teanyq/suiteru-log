@@ -103,6 +103,8 @@ export function rankingOf(rows, me) {
   const ranked = sorted.map((r) => ({ ...r, rank: sorted.findIndex((x) => x.n === r.n) + 1 }));
   const mine = ranked.find((r) => r.device === me);
   return {
+    total: rows.reduce((a, r) => a + r.n, 0),
+    people: rows.length,
     top: ranked.slice(0, 3).map(({ device, n, rank }) => ({ rank, n, name: nickOf(device) })),
     me: mine ? { rank: mine.rank, n: mine.n, name: nickOf(me), of: ranked.length } : null,
   };

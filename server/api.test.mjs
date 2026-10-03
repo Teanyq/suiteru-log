@@ -85,5 +85,7 @@ test("rankingOf: top 3 by report count plus my own rank (ties share a rank)", ()
   assert.deepEqual(r.top.map((t) => [t.rank, t.n]), [[1, 9], [2, 5], [2, 5]]);
   assert.equal(r.top[0].name, nickOf("a"));
   assert.deepEqual(r.me, { rank: 2, n: 5, name: nickOf("me"), of: 5 });
+  assert.equal(r.total, 22); // 路線の報告の集まり具合（30 日の合計件数）
+  assert.equal(r.people, 5);
   assert.equal(rankingOf(rows, "nobody").me, null);
 });

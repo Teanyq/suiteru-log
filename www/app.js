@@ -272,15 +272,15 @@ async function loadHelped() {
 // 路線ごとの報告ランキング（30 日・自動ニックネーム）。1 日 1 回だけ聞く
 function rankText() {
   const route = currentRoute(), r = data.rank;
-  if (!data.share || !route?.line || r?.key !== `${route.line.c}|${route.line.l}` || !r.top?.length) return "";
+  if (!data.share || !route?.line || r?.key !== `${route.line.c}|${route.line.l}` || !r.top?.length || r.total == null) return "";
   const top = r.top.map((t) => `${t.rank}位 ${t.name}（${t.n}件）`).join("・");
-  return `${route.line.l}の報告ランキング（30日）: ${top}／${r.me ? `あなた「${r.me.name}」は ${r.me.of}人中 ${r.me.rank}位` : "報告するとあなたも載ります"}`;
+  return `${route.line.l}のみんなの報告 30日で ${r.total}件・${r.people}人。ランキング: ${top}／${r.me ? `あなた「${r.me.name}」は ${r.me.of}人中 ${r.me.rank}位` : "報告するとあなたも載ります"}`;
 }
 async function loadRank() {
   const route = currentRoute();
   if (!data.share || !route?.line || !navigator.onLine) return;
   const key = `${route.line.c}|${route.line.l}`;
-  if (data.rank?.key === key && data.rank.day === todayKey()) return;
+  if (data.rank?.key === key && data.rank.day === todayKey() && data.rank.total != null) return;
   try {
     const res = await fetch(`${API}/v1/rank?${new URLSearchParams({ c: route.line.c, l: route.line.l, device: data.device })}`);
     if (!res.ok) return;
@@ -356,8 +356,9 @@ function renderCars() {
   const best = bests[0];
   const reports = est.reduce((n, c) => n + c.n, 0), sharedN = est.reduce((n, c) => n + c.shared, 0);
   const parts = [sharedN ? `みんなの報告 ${sharedN} 件` : "", reports ? `あなたの記録 ${reports} 件` : ""].filter(Boolean);
+  const lineTotal = data.share && data.rank?.key === `${route.line?.c}|${route.line?.l}` ? data.rank.total : null;
   const basis = best.stars === 1
-    ? "まだ報告が少ないので、一般的な傾向（端の号車ほど空きやすい）からの予想です"
+    ? `まだ報告が少ないので、一般的な傾向（端の号車ほど空きやすい）からの予想です${lineTotal != null ? `（${route.line.l}のみんなの報告は30日で${lineTotal}件。報告が増えるほど当たります）` : ""}`
     : `${parts.join("と")}から出しています`;
   const dir = dirOf(route);
   $("car-reco").replaceChildren(
