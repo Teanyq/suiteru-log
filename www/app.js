@@ -358,7 +358,10 @@ function renderCars() {
   const dir = dirOf(route);
   $("car-reco").replaceChildren(
     el("p", { className: "reco-when", textContent: `${d.getHours()}時ごろ${dir ? `・${dir}方面` : ""}は` }),
-    el("p", { className: "reco-head" }, el("strong", { textContent: bests.map((c) => `${c.car}号車`).join("・") }), " が空いてそう"),
+    // 2 両以下は号車の差がほとんどないので、言い切らない（空いてる時間帯は下の「今日のおすすめ」へ）
+    (route.cars ?? 10) <= 2
+      ? el("p", { className: "reco-head" }, el("strong", { textContent: `${route.cars}両編成` }), " なので号車の差は小さめ。空いてる時間帯は下の「今日のおすすめ」へ")
+      : el("p", { className: "reco-head" }, el("strong", { textContent: bests.map((c) => `${c.car}号車`).join("・") }), " が空いてそう"),
     el("div", { className: "train mini", role: "img", ariaLabel: est.map((c) => `${c.car}号車 ${LEVELS[Math.round(c.value) - 1][1]}`).join("、") },
       // 混んでいる号車は斜線の模様も付ける（色が見分けにくい人にも伝わるように）
       ...est.map((c) => el("div", { className: `car-cell${c.stars === 1 ? " guess" : ""}${bests.includes(c) ? " best" : ""}${c.value >= 3.5 ? " crowded" : ""}`, style: `background-color:${color(c.value)}` },
@@ -516,7 +519,7 @@ async function pickRoute(title, onDone) {
             closePicker();
           })) })) }) })) }) })) }) })) });
 }
-const CAR_COUNTS = [4, 6, 8, 10, 11, 12, 15];
+const CAR_COUNTS = [1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 15];
 const carsStep = (done) => ({ title: "何両編成？", items: [
   ...CAR_COUNTS.map((n) => ({ label: `${n}両`, onPick: () => done(n) })),
   { label: "わからない", sub: "10両で始めます（あとで変えられます）", onPick: () => done(10) },
