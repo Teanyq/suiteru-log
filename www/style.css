@@ -42,7 +42,7 @@ button { cursor: pointer; }
 #toast { min-height: 1.5em; margin: 10px 0 0; color: var(--muted); font-size: .9rem; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 #toast span { white-space: pre-line; }
 #toast button { flex: none; white-space: nowrap; }
-#toast button, #history-list button { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 10px; font-size: .85rem; }
+#toast button, #history-list button { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 10px; font-size: .85rem; min-height: 44px; }
 #history summary { cursor: pointer; color: var(--muted); font-size: .9rem; padding: 6px 0; }
 #history-list { list-style: none; margin: 0; padding: 0; }
 #history-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: .9rem; font-variant-numeric: tabular-nums; }
@@ -95,13 +95,13 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .reco-when { margin: 0; color: var(--muted); font-size: .9rem; }
 .legend { margin: 6px 0 0; font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .legend > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.legend .link-btn { margin: 0; padding: 0; font-size: .75rem; }
+.legend .link-btn { margin: 0; padding: 0; font-size: .8rem; min-height: 44px; }
 .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 .car-cell.crowded, .legend i.crowded { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.35) 0 3px, transparent 3px 7px); }
 .toast-moods { flex-basis: 100%; display: flex; align-items: center; gap: 6px; }
-.toast-moods button { font-size: 1.2rem; padding: 2px 8px; }
+.toast-moods button { font-size: 1.2rem; min-width: 44px; min-height: 44px; padding: 2px 8px; }
 .more { margin-top: 12px; }
-.more summary, #history summary { color: var(--muted); font-size: .85rem; cursor: pointer; }
+.more summary, #history summary { color: var(--muted); font-size: .85rem; cursor: pointer; padding: 12px 0; }
 .nicknames { margin: 6px 0 0; font-size: .85rem; font-weight: 600; }
 .tags-hint { color: var(--muted); font-size: .75rem; }
 .nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; padding: 12px 16px; border-radius: 12px; background: var(--card); border: 2px solid var(--accent); font-size: .9rem; }
@@ -134,7 +134,7 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .sheet-foot { padding: 4px 16px calc(12px + env(safe-area-inset-bottom)); }
 .primary-btn { width: 100%; min-height: 48px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .foot-stack { display: grid; gap: 4px; }
-.chip { min-width: 44px; min-height: 40px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+.chip { min-width: 44px; min-height: 44px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .cars-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 4px 0 10px; }
 .train { display: flex; gap: 4px; overflow-x: auto; padding: 6px 2px 10px; }
@@ -162,7 +162,7 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .car-pick-wrap { margin: 0 0 10px; }
 .car-pick-label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
 .car-pick { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
-.car-pick .chip { flex: none; min-width: 40px; }
+.car-pick .chip { flex: none; min-width: 44px; }
 .points { margin: -6px 0 12px; font-size: .85rem; }
 .points strong { color: var(--accent); }
 .points small { color: var(--muted); }
