@@ -13,3 +13,12 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 CREATE INDEX IF NOT EXISTS reports_lookup ON reports (line, dir, daytype, slot, created_at);
 CREATE INDEX IF NOT EXISTS reports_device ON reports (device, created_at);
+
+-- 「あなたの報告が◯人の役に立った」用。集計を見に来た端末を 1 日・1 枠につき 1 行（30 日で消す）
+CREATE TABLE IF NOT EXISTS views (
+  line TEXT NOT NULL, dir TEXT NOT NULL, daytype TEXT NOT NULL, slot INTEGER NOT NULL,
+  day TEXT NOT NULL,           -- 日本時間の日付 YYYY-MM-DD
+  device TEXT NOT NULL,
+  PRIMARY KEY (line, dir, daytype, slot, day, device)
+);
+CREATE INDEX IF NOT EXISTS views_day ON views (day);

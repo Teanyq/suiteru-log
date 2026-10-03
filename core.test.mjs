@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, MOODS, nicknameOf } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, MOODS, nicknameOf, monthRecap } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -422,4 +422,18 @@ test("mood: kept in backups, sent with reports, and turned into a car nickname",
   assert.equal(reportPayload("dev", route, { t: "2026-10-01T07:40:00", level: 3, car: 2, mood: "happy" }).mood, "happy");
   assert.equal("mood" in reportPayload("dev", route, { t: "2026-10-01T07:40:00", level: 3, car: 2 }), false);
   for (const m of Object.keys(MOODS)) assert.match(nicknameOf(m), /号$/);
+});
+
+test("monthRecap counts this month's rides, empty/crowded rides, guesses and the top mood", () => {
+  const rec = (t, level, extra = {}) => ({ route: "r1", t, level, ...extra });
+  const logs = [
+    rec("2026-09-30T07:40:00", 1), // 先月は数えない
+    rec("2026-10-01T07:40:00", 1, { guess: "low", mood: "sleepy" }),
+    rec("2026-10-02T07:40:00", 5, { guess: "low", mood: "sleepy" }),
+    rec("2026-10-05T07:40:00", 3, { mood: "happy" }),
+  ];
+  assert.deepEqual(monthRecap(logs, new Date("2026-10-20T12:00:00")), {
+    month: 10, rides: 3, empty: 1, crowded: 1, guessN: 2, guessHit: 1, mood: "sleepy",
+  });
+  assert.equal(monthRecap(logs, new Date("2026-11-01T12:00:00")).rides, 0);
 });

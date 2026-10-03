@@ -359,6 +359,17 @@ export function guessStats(logs) {
   return { n: g.length, hit: g.filter((l) => guessHit(l.guess, l.level)).length };
 }
 
+// 今月のふりかえり（端末内の記録だけで出す）
+export function monthRecap(logs, now) {
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const m = logs.filter((l) => l.t.startsWith(ym));
+  const g = guessStats(m);
+  const moods = {};
+  for (const l of m) if (l.mood) moods[l.mood] = (moods[l.mood] ?? 0) + 1;
+  const mood = Object.entries(moods).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  return { month: now.getMonth() + 1, rides: m.length, empty: m.filter((l) => l.level <= 2).length, crowded: m.filter((l) => l.level >= 4).length, guessN: g.n, guessHit: g.hit, mood };
+}
+
 // 記録したときの労いの一言。混雑 > 連続記録の節目 > 曜日 > 空いていた、の順で 1 つ。どれでもなければ日替わり
 const CHEERS = ["今日もえらい", "乗れただけで100点", "おつかれさま、いってらっしゃい", "記録ありがとう。誰かの号車選びに役立ちます", "深呼吸ひとつ、いい一日を"];
 export function cheerOf({ level, streakDays, dow, n }) {

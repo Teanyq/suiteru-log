@@ -2,6 +2,7 @@
 
 export const HALF_LIFE_DAYS = 30;   // アプリの推定と同じ: 30 日で重み半分
 export const WINDOW_DAYS = 120;     // これより古い報告は集計しない
+export const HELPED_DAYS = 30;     // 「役に立った人数」は直近 30 日。閲覧の記録もこの日数で消す
 export const RATE_LIMIT_MS = 5 * 60 * 1000; // 同じ端末・路線・方面・号車は 5 分に 1 回
 export const MOODS = ["sleepy", "fight", "tired", "happy"]; // 号車の気分スタンプ（任意）
 export const MOOD_MIN_PEOPLE = 3; // これ未満の号車はあだ名を出さない（少人数を特定させない）

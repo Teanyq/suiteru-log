@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, MOODS, nicknameOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, MOODS, nicknameOf, monthRecap } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -254,6 +254,33 @@ async function loadShared(route, daytype, slot) {
   } catch { return null; }
 }
 
+// 今月のふりかえり。共有オンなら「あなたの報告が◯人の号車選びに使われた」も（サーバーに 1 日 1 回だけ聞く）
+async function loadHelped() {
+  if (!data.share || !navigator.onLine || data.helped?.day === todayKey()) return;
+  try {
+    const res = await fetch(`${API}/v1/me?${new URLSearchParams({ device: data.device })}`);
+    if (!res.ok) return;
+    data.helped = { day: todayKey(), n: (await res.json()).helped };
+    save();
+    renderRecap();
+  } catch {}
+}
+function renderRecap() {
+  const r = monthRecap(data.logs, new Date());
+  $("recap-sec").hidden = !r.rides;
+  if (!r.rides) return;
+  $("h-recap").textContent = `${r.month}月のふりかえり`;
+  const items = [
+    `記録 ${r.rides} 回${r.empty ? `（空いてた ${r.empty} 回）` : ""}`,
+    r.crowded ? `ぎゅうぎゅうに耐えた ${r.crowded} 回。おつかれさま` : "",
+    r.guessN ? `号車予想 ${r.guessHit}/${r.guessN} 的中` : "",
+    r.mood ? `いちばん多かった気分: ${MOODS[r.mood][0]}${MOODS[r.mood][1]}` : "",
+    data.share && data.helped?.n ? `あなたの報告が、この30日で ${data.helped.n} 人の号車選びに使われました` : "",
+  ].filter(Boolean);
+  $("recap").replaceChildren(...items.map((t) => el("li", { textContent: t })));
+  loadHelped();
+}
+
 function renderShare() {
   $("share").checked = !!data.share;
   $("device-id").textContent = data.device.slice(0, 8);
@@ -325,7 +352,7 @@ function renderPoints() {
     g.n ? el("small", { textContent: ` 予想的中 ${g.hit}/${g.n}` }) : "");
 }
 
-const render = () => { renderRoutes(); renderShare(); renderPoints(); renderGuess(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+const render = () => { renderRoutes(); renderShare(); renderPoints(); renderGuess(); renderRecap(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 // 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
 // Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）

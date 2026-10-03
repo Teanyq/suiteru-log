@@ -1,5 +1,5 @@
 // Cloudflare Worker: 匿名の号車混雑報告の受付と集計（docs/SPEC-v2.md）
-import { parseReport, aggregate, moodsOf, dayStartJst, RATE_LIMIT_MS, WINDOW_DAYS } from "./api.mjs";
+import { parseReport, aggregate, moodsOf, dayStartJst, RATE_LIMIT_MS, WINDOW_DAYS, HELPED_DAYS } from "./api.mjs";
 
 // アプリ（Android: https://localhost / iOS: capacitor://localhost）と Web 版からだけ受け付ける
 const ORIGINS = new Set(["https://teanyq.github.io", "https://localhost", "capacitor://localhost", "http://localhost:5180"]);
@@ -40,15 +40,37 @@ export default {
       const p = parseReport({ device: "q", line: { c: q.get("c"), l: q.get("l") }, dir: q.get("dir"), daytype: q.get("daytype"), slot, car: 1, level: 1 });
       if (!p) return json({ cars: [] }, 400, cors);
       const now = Date.now();
+      const device = (q.get("device") ?? "").slice(0, 64);
+      const day = new Date(dayStartJst(now) + 9 * 3600000).toISOString().slice(0, 10);
+      // 「あなたの報告が◯人の役に立った」用: 誰が・どの枠を見たかを 1 日 1 行だけ残す（HELPED_DAYS を過ぎたら消す）
+      if (device) {
+        await env.DB.batch([
+          env.DB.prepare("INSERT OR IGNORE INTO views (line, dir, daytype, slot, day, device) VALUES (?, ?, ?, ?, ?, ?)").bind(p.line, p.dir, p.daytype, slot, day, device),
+          env.DB.prepare("DELETE FROM views WHERE day < ?").bind(new Date(now - (HELPED_DAYS + 1) * 86400000).toISOString().slice(0, 10)),
+        ]);
+      }
       const { results } = await env.DB.prepare(
         "SELECT car, slot, level, created_at FROM reports WHERE line = ? AND dir = ? AND daytype = ? AND slot BETWEEN ? AND ? AND created_at > ? AND device != ? LIMIT 5000")
         // 自分の報告はアプリ側で記録として数えるので除く（二重に数えない）
-        .bind(p.line, p.dir, p.daytype, slot - 1, slot + 1, now - WINDOW_DAYS * 86400000, (q.get("device") ?? "").slice(0, 64)).all();
+        .bind(p.line, p.dir, p.daytype, slot - 1, slot + 1, now - WINDOW_DAYS * 86400000, device).all();
       // 今日のこの路線・方面の気分スタンプ（号車のあだ名用。3 人未満の号車は返さない）
       const { results: moods } = await env.DB.prepare(
         "SELECT car, mood, device, created_at FROM reports WHERE line = ? AND dir = ? AND created_at >= ? AND mood IS NOT NULL LIMIT 5000")
         .bind(p.line, p.dir, dayStartJst(now)).all();
       return json({ cars: aggregate(results, slot, now), moods: moodsOf(moods) }, 200, { ...cors, "Cache-Control": "public, max-age=60" });
+    }
+
+    // この端末の報告がある枠（路線・方面・平日休日・15 分枠）を、ほかの人が何人・日見に来たか（直近 HELPED_DAYS 日）
+    if (url.pathname === "/v1/me" && req.method === "GET") {
+      const device = (url.searchParams.get("device") ?? "").slice(0, 64);
+      if (!device) return json({ helped: 0 }, 400, cors);
+      const now = Date.now();
+      const row = await env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM views v JOIN (SELECT DISTINCT line, dir, daytype, slot FROM reports WHERE device = ? AND created_at > ?) r
+           ON v.line = r.line AND v.dir = r.dir AND v.daytype = r.daytype AND v.slot = r.slot
+         WHERE v.device != ? AND v.day >= ?`)
+        .bind(device, now - HELPED_DAYS * 86400000, device, new Date(now - HELPED_DAYS * 86400000).toISOString().slice(0, 10)).first();
+      return json({ helped: row?.n ?? 0 }, 200, { ...cors, "Cache-Control": "private, max-age=600" });
     }
 
     return json({ error: "not found" }, 404, cors);
