@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -340,4 +340,37 @@ test("titleOf picks the title by points and says how far to the next", () => {
   assert.deepEqual(titleOf(0), { title: "見習い乗客", next: "通勤ルーキー", toNext: 100 });
   assert.deepEqual(titleOf(320), { title: "号車ハンター", next: "ベテラン車掌", toNext: 380 });
   assert.equal(titleOf(99999).next, null);
+});
+
+test("carEstimates blends everyone's shared reports with mine", () => {
+  const now = new Date("2026-10-02T08:00:00");
+  const base = { route: "r1", cars: 4, dow: 5, slot: 30, now, logs: [] };
+  const alone = carEstimates(base)[2];
+  const withShared = carEstimates({ ...base, shared: [{ car: 3, w: 10, mean: 1, n: 12 }] })[2];
+  assert.ok(withShared.value < alone.value - 1, "みんなの報告で大きく動く");
+  assert.equal(withShared.shared, 12);
+  assert.equal(withShared.stars, 3);
+});
+
+test("dirOf reads the direction from the route", () => {
+  assert.equal(dirOf({ name: "田園都市線 渋谷方面" }), "渋谷");
+  assert.equal(dirOf({ name: "x", dir: "中央林間" }), "中央林間");
+  assert.equal(dirOf({ name: "いつもの路線" }), null);
+});
+
+test("reportPayload builds an anonymous report only when line, direction and car are known", () => {
+  const route = { id: "r1", name: "田園都市線 渋谷方面", line: { c: "東急電鉄", l: "田園都市線" } };
+  const log = { route: "r1", t: "2026-10-02T07:42:00", level: 4, car: 5 };
+  assert.deepEqual(reportPayload("dev-1", route, log), { device: "dev-1", line: { c: "東急電鉄", l: "田園都市線" }, dir: "渋谷", daytype: "wd", slot: 30, car: 5, level: 4 });
+  assert.equal(reportPayload("dev-1", route, { ...log, car: undefined }), null, "号車なしは送らない");
+  assert.equal(reportPayload("dev-1", { ...route, line: undefined }, log), null, "一覧から選んでいない路線は送らない");
+  assert.equal(reportPayload("dev-1", route, { ...log, tags: ["delay"] }), null, "遅延などの印つきは送らない");
+});
+
+test("carEstimates: one extreme record doesn't flatten the whole train into ties", () => {
+  const now = new Date("2026-10-02T08:00:00");
+  const est = carEstimates({ route: "r1", cars: 10, dow: 5, slot: 30, now, logs: [{ route: "r1", t: "2026-10-02T07:30:00", level: 1, car: 7 }] });
+  const min = Math.min(...est.map((c) => c.value));
+  const ties = est.filter((c) => c.value - min < 0.05).length;
+  assert.ok(ties <= 2, `同点が ${ties} 両もある`);
 });

@@ -35,6 +35,10 @@
   <p id="backup-nudge" class="nudge" hidden></p>
   <section aria-labelledby="h-cars" class="hero">
     <h2 id="h-cars">空いてる号車</h2>
+    <div id="share-ask" class="share-ask" hidden>
+      <p><strong>みんなの報告で、もっと正確に</strong><br>あなたの「号車と混み具合」を匿名で共有すると、乗ったことのない時間帯の号車もわかるようになります。名前・位置情報・連絡先は送りません。</p>
+      <div class="data-row"><button id="share-yes" class="primary-btn" type="button">共有する</button><button id="share-no" type="button">今はしない</button></div>
+    </div>
     <div id="car-reco"></div>
   </section>
 
@@ -119,7 +123,8 @@
 
   <section aria-labelledby="h-data">
     <h2 id="h-data">データ（機種変更用）</h2>
-    <p class="note">記録はこの端末の中だけに保存されています。<span id="last-export"></span></p>
+    <p class="note">記録はこの端末に保存されています。<span id="last-export"></span></p>
+    <label class="period share-toggle"><input id="share" type="checkbox"> みんなと共有する（号車と混み具合を匿名で送る）</label>
     <div class="data-row">
       <button id="export" type="button">書き出す</button>
       <label class="file-btn">読み込む<input id="import" type="file" accept="application/json,.json"></label>

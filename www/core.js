@@ -72,6 +72,7 @@ export function parseBackup(text) {
       if (typeof r.line?.c === "string" && typeof r.line?.l === "string") route.line = { c: r.line.c.slice(0, 40), l: r.line.l.slice(0, 40) };
       if (Number.isInteger(r.cars) && r.cars >= 1 && r.cars <= 20) route.cars = r.cars; // 乗換メモの編成両数
       if (Number.isInteger(r.lastCar) && r.lastCar >= 1 && r.lastCar <= 20) route.lastCar = r.lastCar; // v2: 前回乗った号車
+      if (typeof r.dir === "string" && r.dir.trim()) route.dir = r.dir.trim().slice(0, 40); // v2: 方面（終点）
       return route;
     });
   if (!routes.length) throw new Error("路線データがありません");
@@ -293,7 +294,7 @@ const PRIOR_WEIGHT = 3; // 事前推定を「報告 3 件分」とみなす
 const HALF_LIFE_DAYS = 30; // 報告の重みが半分になる日数
 
 // その路線・曜日の種類・15分枠（前後 1 枠は半分の重み）の、号車つき報告から号車ごとの混雑を推定する
-export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [] }) {
+export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [], shared = [] }) {
   const mine = logs.filter((l) => l.route === route && !l.tags?.length);
   const weightOf = (l) => {
     const d = new Date(l.t);
@@ -306,7 +307,8 @@ export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [
   // 号車なしの記録も含めた、その時間帯の自分の平均を事前推定の土台にする（なければ 3）
   let bw = 0, bs = 0;
   for (const l of mine) { const w = weightOf(l); bw += w; bs += w * l.level; }
-  const prior = carPrior(cars, bw > 0 ? bs / bw : 3).map((p, i) => Math.min(5, p + (stairsCars.includes(i + 1) ? 0.5 : 0)));
+  // 記録が少ないうちは土台を真ん中（3）に寄せる（1 件の極端な記録で全体が端に張りついて同点だらけにならないように）
+  const prior = carPrior(cars, (PRIOR_WEIGHT * 3 + bs) / (PRIOR_WEIGHT + bw)).map((p, i) => Math.min(5, p + (stairsCars.includes(i + 1) ? 0.5 : 0)));
   return prior.map((p, i) => {
     let w = 0, s = 0, n = 0;
     for (const l of mine) {
@@ -314,7 +316,10 @@ export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [
       const lw = weightOf(l);
       if (lw > 0) { w += lw; s += lw * l.level; n++; }
     }
-    return { car: i + 1, value: (PRIOR_WEIGHT * p + s) / (PRIOR_WEIGHT + w), prior: p, n, stars: w < 0.5 ? 1 : w < 3 ? 2 : 3 };
+    // みんなの報告（サーバーの集計: 重み w と平均 mean）も同じ重みの観測として足す
+    const sh = shared.find((x) => x.car === i + 1);
+    if (sh) { w += sh.w; s += sh.w * sh.mean; }
+    return { car: i + 1, value: (PRIOR_WEIGHT * p + s) / (PRIOR_WEIGHT + w), prior: p, n, shared: sh?.n ?? 0, stars: w < 0.5 ? 1 : w < 3 ? 2 : 3 };
   });
 }
 
@@ -344,4 +349,15 @@ export function titleOf(points) {
   const i = TITLES.findLastIndex(([min]) => points >= min);
   const next = TITLES[i + 1];
   return { title: TITLES[i][1], next: next ? next[1] : null, toNext: next ? next[0] - points : 0 };
+}
+
+// 路線の方面（終点の駅名）。一覧から選んだ路線は dir を持つ。古い路線は名前の「〜方面」から読む
+export const dirOf = (route) => route.dir ?? route.name.match(/ (.+)方面$/)?.[1] ?? null;
+
+// サーバーに送る匿名の報告。一覧から選んだ路線・方面・号車がそろい、遅延などの印がない記録だけ
+export function reportPayload(device, route, log) {
+  const dir = dirOf(route);
+  if (!route.line || !dir || !log.car || log.tags?.length) return null;
+  const d = new Date(log.t);
+  return { device, line: route.line, dir, daytype: isWeekend(d.getDay()) ? "we" : "wd", slot: slotOf(log.t), car: log.car, level: log.level };
 }

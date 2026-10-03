@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -218,6 +218,57 @@ function renderBackup() {
 }
 
 // renderRoutes が無効な data.current を直すので最初に呼ぶ（以降の表示はその路線で描く）
+// ── v2: みんなと共有（docs/SPEC-v2.md 段階 B）──
+const API = "https://suiteru-api.suiteru-server.workers.dev";
+data.device ??= crypto.randomUUID(); // 匿名のランダム ID（個人とは結びつかない）
+data.outbox ??= [];                   // 電波がない時に送れなかった報告
+
+async function flushOutbox() {
+  if (!data.share || !data.outbox.length || !navigator.onLine) return;
+  const pending = data.outbox.splice(0);
+  for (const p of pending) {
+    try {
+      const res = await fetch(`${API}/v1/reports`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+      if (res.status >= 500) data.outbox.push(p); // サーバー側の一時的な不調は後で送り直す（400/429 は捨てる）
+    } catch { data.outbox.push(p); }
+  }
+  data.outbox = data.outbox.slice(-50); // ためすぎない
+  save();
+}
+
+// みんなの集計（60 秒キャッシュ）。取れなければ自分の記録と推定だけで表示する
+const sharedCache = new Map();
+async function loadShared(route, daytype, slot) {
+  const dir = dirOf(route);
+  if (!data.share || !route.line || !dir) return [];
+  const key = new URLSearchParams({ c: route.line.c, l: route.line.l, dir, daytype, slot: String(slot) }).toString(), hit = sharedCache.get(key);
+  // 自分の報告はサーバー側で除いてもらう（手元の記録として数えるので二重にしない）
+  const q = `${key}&${new URLSearchParams({ device: data.device })}`;
+  if (hit && Date.now() - hit.at < 60000) return hit.cars;
+  try {
+    const res = await fetch(`${API}/v1/cars?${q}`);
+    const cars = res.ok ? (await res.json()).cars : [];
+    sharedCache.set(key, { at: Date.now(), cars });
+    return cars;
+  } catch { return []; }
+}
+
+function renderShare() {
+  $("share").checked = !!data.share;
+  $("share-ask").hidden = data.share !== undefined; // まだ聞いていない時だけ出す
+}
+function setShare(on) {
+  data.share = on;
+  save();
+  sharedCache.clear();
+  renderShare();
+  renderCars();
+  if (on) flushOutbox();
+}
+$("share-yes").addEventListener("click", () => { setShare(true); toast("共有をオンにしました。ありがとうございます"); });
+$("share-no").addEventListener("click", () => { setShare(false); toast("共有はオフです（データ欄からいつでも変えられます）"); });
+$("share").addEventListener("change", (e) => setShare(e.target.checked));
+
 // ── v2: 空いてる号車 ──
 const currentRoute = () => data.routes.find((r) => r.id === data.current);
 // 乗換メモで階段・エスカレーターがある号車（どの駅かは問わず、その路線で混みやすい号車とみなす）
@@ -228,13 +279,20 @@ function renderCars() {
   if (!route) return;
   const cars = route.cars ?? 10;
   const d = timeInput() ?? new Date();
-  const est = carEstimates({ route: route.id, cars, dow: d.getDay(), slot: slotOf(localIso(d)), now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id) });
+  const slot = slotOf(localIso(d)), daytype = isWeekend(d.getDay()) ? "we" : "wd";
+  const shared = sharedCache.get(new URLSearchParams({ c: route.line?.c ?? "", l: route.line?.l ?? "", dir: dirOf(route) ?? "", daytype, slot: String(slot) }).toString())?.cars ?? [];
+  if (data.share && route.line && !renderCars.loading) {
+    renderCars.loading = true;
+    loadShared(route, daytype, slot).then((cars) => { renderCars.loading = false; if (cars.length && cars !== shared) renderCars(); });
+  }
+  const est = carEstimates({ route: route.id, cars, dow: d.getDay(), slot, now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id), shared });
   const min = Math.min(...est.map((c) => c.value));
   const bests = est.filter((c) => c.value - min < 0.05); // 同点（両端など）はまとめて出す
   const best = bests[0];
-  const reports = est.reduce((n, c) => n + c.n, 0);
-  const basis = reports
-    ? `${slotLabel(slotOf(localIso(d)))}台・あなたの号車つき記録 ${reports} 件と一般的な傾向から推定`
+  const reports = est.reduce((n, c) => n + c.n, 0), sharedN = est.reduce((n, c) => n + c.shared, 0);
+  const parts = [sharedN ? `みんなの報告 ${sharedN} 件` : "", reports ? `あなたの記録 ${reports} 件` : ""].filter(Boolean);
+  const basis = parts.length
+    ? `${slotLabel(slot)}台・${parts.join("と")}と一般的な傾向から推定`
     : "まだ号車つきの記録がないので、一般的な傾向（端の号車ほど空きやすい）から推定しています";
   $("car-reco").replaceChildren(
     el("p", { className: "reco-head" }, "おすすめは ", el("strong", { textContent: bests.map((c) => `${c.car}号車`).join("・") }), best.stars === 1 ? el("span", { className: "badge", textContent: "推定" }) : ""),
@@ -261,7 +319,7 @@ function renderPoints() {
   $("points").replaceChildren(el("strong", { textContent: title }), ` ${pts}pt`, next ? el("small", { textContent: `（${next}まであと${toNext}pt）` }) : "");
 }
 
-const render = () => { renderRoutes(); renderPoints(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+const render = () => { renderRoutes(); renderShare(); renderPoints(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 // 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
 // Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）
@@ -279,6 +337,8 @@ function record(level, label) {
   const before = pointsOf(data.logs);
   data.logs.push(log);
   const gained = pointsOf(data.logs) - before;
+  const payload = data.share && reportPayload(data.device, currentRoute(), log);
+  if (payload) { data.outbox.push(payload); flushOutbox(); }
   save();
   buzz();
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
@@ -355,8 +415,8 @@ async function pickRoute(title, onDone) {
   showStep({ title, foot: manual, items: REGIONS.map((region) => ({ label: region, onPick: () =>
     showStep({ title: region, items: companiesIn(lines, region).map((company) => ({ label: companyLabel(company), onPick: () =>
       showStep({ title: companyLabel(company), items: linesOf(lines, region, company).map((line) => ({ label: lineLabel(line), sub: `${line.s.length}駅`, onPick: () =>
-        showStep({ title: `${lineLabel(line)}（どちら方面？）`, items: directionsOf(line).map((name) => ({ label: name, onPick: () => {
-          onDone(name, { c: line.c, l: line.l });
+        showStep({ title: `${lineLabel(line)}（どちら方面？）`, items: directionsOf(line).map((name, i) => ({ label: name, onPick: () => {
+          onDone(name, { c: line.c, l: line.l }, line.s.length < 2 ? null : i === 0 ? line.s.at(-1) : line.s[0]);
           closePicker();
         } })) }) })) }) })) }) })) });
 }
@@ -423,18 +483,19 @@ async function pickMemo() {
 }
 $("memo-add").addEventListener("click", pickMemo);
 
-$("add-route").addEventListener("click", () => pickRoute("路線を追加", (name, line) => {
+$("add-route").addEventListener("click", () => pickRoute("路線を追加", (name, line, dir) => {
   const id = `r${Date.now()}`;
-  data.routes.push({ id, name, ...(line ? { line } : {}) });
+  data.routes.push({ id, name, ...(line ? { line } : {}), ...(dir ? { dir } : {}) });
   data.current = id;
   save();
   render();
   toast(`「${name}」を追加しました`);
 }));
 // 選び直しても記録は残る（同じ路線 ID のまま名前と路線情報だけ変える）
-$("rename-route").addEventListener("click", () => pickRoute("路線を選び直す", (name, line) => {
+$("rename-route").addEventListener("click", () => pickRoute("路線を選び直す", (name, line, dir) => {
   const r = data.routes.find((x) => x.id === data.current);
   r.name = name;
+  if (dir) r.dir = dir; else delete r.dir;
   if (line) r.line = line; else delete r.line;
   save();
   render();
@@ -520,7 +581,8 @@ function autoRoute() {
 }
 
 // アプリに戻ってきた時に路線と時刻を今に合わせる（朝開いたまま夕方に記録、を防ぐ）
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { autoRoute(); setTime(); render(); } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { autoRoute(); setTime(); render(); flushOutbox(); } });
+window.addEventListener("online", flushOutbox);
 
 autoRoute();
 setTime();

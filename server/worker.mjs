@@ -41,8 +41,9 @@ export default {
       if (!p) return json({ cars: [] }, 400, cors);
       const now = Date.now();
       const { results } = await env.DB.prepare(
-        "SELECT car, slot, level, created_at FROM reports WHERE line = ? AND dir = ? AND daytype = ? AND slot BETWEEN ? AND ? AND created_at > ? LIMIT 5000")
-        .bind(p.line, p.dir, p.daytype, slot - 1, slot + 1, now - WINDOW_DAYS * 86400000).all();
+        "SELECT car, slot, level, created_at FROM reports WHERE line = ? AND dir = ? AND daytype = ? AND slot BETWEEN ? AND ? AND created_at > ? AND device != ? LIMIT 5000")
+        // 自分の報告はアプリ側で記録として数えるので除く（二重に数えない）
+        .bind(p.line, p.dir, p.daytype, slot - 1, slot + 1, now - WINDOW_DAYS * 86400000, (q.get("device") ?? "").slice(0, 64)).all();
       return json({ cars: aggregate(results, slot, now) }, 200, { ...cors, "Cache-Control": "public, max-age=60" });
     }
 
