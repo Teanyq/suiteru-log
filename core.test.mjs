@@ -472,3 +472,10 @@ test("holidays count as days off: shared reports, streaks and car estimates", ()
   const est = carEstimates({ route: "r1", cars: 4, dow: 2, slot: 32, now: new Date("2026-10-13T08:00:00"), logs: [holidayLog], off: false });
   assert.equal(est[0].n, 0);
 });
+
+test("carEstimates: shared reports also move the baseline, so unreported cars follow the time of day", () => {
+  // 深夜・4 両・自分の記録なし・みんなの報告は 1 号車に「ガラガラ」5 件分
+  const est = carEstimates({ route: "r1", cars: 4, dow: 3, slot: 4, now: new Date("2026-10-07T01:00:00"), logs: [], shared: [{ car: 1, w: 5, mean: 1, n: 5 }] });
+  assert.ok(est[1].value < 2.5, `報告のない 2 号車も空いている側に寄る（${est[1].value}）`);
+  assert.ok(est[0].value < est[1].value, "報告のある 1 号車はいちばん空いている");
+});

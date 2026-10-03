@@ -315,9 +315,11 @@ export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [
     const ageDays = (now - d) / 86400000;
     return (ds === 0 ? 1 : 0.5) * 0.5 ** (Math.max(0, ageDays) / HALF_LIFE_DAYS);
   };
-  // 号車なしの記録も含めた、その時間帯の自分の平均を事前推定の土台にする（なければ 3）
+  // その時間帯の混み具合（自分の記録＝号車なしも含む＋みんなの報告）を事前推定の土台にする（なければ 3）。
+  // みんなの報告も入れるので、報告のない号車も「深夜は空いている」などに一緒に寄る
   let bw = 0, bs = 0;
   for (const l of mine) { const w = weightOf(l); bw += w; bs += w * l.level; }
+  for (const sh of shared) { bw += sh.w; bs += sh.w * sh.mean; }
   // 記録が少ないうちは土台を真ん中（3）に寄せる（1 件の極端な記録で全体が端に張りついて同点だらけにならないように）
   const prior = carPrior(cars, (PRIOR_WEIGHT * 3 + bs) / (PRIOR_WEIGHT + bw)).map((p, i) => Math.min(5, p + (stairsCars.includes(i + 1) ? 0.5 : 0)));
   return prior.map((p, i) => {
