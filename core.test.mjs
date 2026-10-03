@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, MONTH_GOAL, badgesOf } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -487,4 +487,10 @@ test("parseBackup carries the share ID over to the new phone (and ignores a bad 
   assert.equal(parseBackup(JSON.stringify({ ...base, device: "abc-123" })).device, "abc-123");
   assert.equal("device" in parseBackup(JSON.stringify({ ...base, device: "x".repeat(65) })), false);
   assert.equal("device" in parseBackup(JSON.stringify(base)), false);
+});
+
+test("monthly goal: every month with MONTH_GOAL rides earns that season's badge (never runs out)", () => {
+  const rides = (ym, n) => Array.from({ length: n }, (_, i) => ({ route: "r1", t: `${ym}-${String(1 + (i % 28)).padStart(2, "0")}T08:00:00`, level: 3 }));
+  const logs = [...rides("2026-09", MONTH_GOAL), ...rides("2026-10", MONTH_GOAL - 1), ...rides("2026-12", MONTH_GOAL + 5)];
+  assert.deepEqual(badgesOf(logs), [{ ym: "2026-09", emoji: "🎑" }, { ym: "2026-12", emoji: "🎄" }]);
 });

@@ -379,6 +379,15 @@ export function guessStats(logs) {
   return { n: g.length, hit: g.filter(predHit).length };
 }
 
+// 今月の目標（毎月リセット）。達成した月はその季節のバッジ。称号のように打ち止めにならない
+export const MONTH_GOAL = 30;
+const SEASON = ["🎍", "⛄", "🌸", "🌷", "🎏", "☔", "🎐", "🌻", "🎑", "🍁", "🍂", "🎄"];
+export function badgesOf(logs) {
+  const count = {};
+  for (const l of logs) { const ym = l.t.slice(0, 7); count[ym] = (count[ym] ?? 0) + 1; }
+  return Object.keys(count).filter((ym) => count[ym] >= MONTH_GOAL).sort().map((ym) => ({ ym, emoji: SEASON[Number(ym.slice(5)) - 1] }));
+}
+
 // 今月のふりかえり（端末内の記録だけで出す）
 export function monthRecap(logs, now) {
   const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;

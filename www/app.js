@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, MONTH_GOAL, badgesOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -295,7 +295,10 @@ function renderRecap() {
   $("recap-sec").hidden = !r.rides;
   if (!r.rides) return;
   $("h-recap").textContent = `${r.month}月のふりかえり`;
+  const badges = badgesOf(data.logs);
   const items = [
+    r.rides >= MONTH_GOAL ? `今月の目標 ${MONTH_GOAL} 回 達成！バッジ ${badges.at(-1).emoji} をゲット` : `今月の目標まで あと ${MONTH_GOAL - r.rides} 回（${r.rides}/${MONTH_GOAL}）。達成で季節のバッジ`,
+    badges.length ? `集めたバッジ: ${badges.map((b) => `${b.emoji}${Number(b.ym.slice(5))}月`).join(" ")}` : "",
     `記録 ${r.rides} 回${r.empty ? `（空いてた ${r.empty} 回）` : ""}`,
     r.crowded ? `ぎゅうぎゅうに耐えた ${r.crowded} 回。おつかれさま` : "",
     r.guessN ? `アプリの予想との答え合わせ ${r.guessHit}/${r.guessN} 的中` : "",
