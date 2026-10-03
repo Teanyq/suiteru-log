@@ -38,7 +38,8 @@
 
     <!-- Permissions -->
 
-    <!-- インターネット権限は付けない: 画面ファイルはすべて同梱で、通信は一切しない（プライバシーポリシーの前提） -->
+    <!-- 共有をオンにしたときだけ、匿名の号車混雑報告を送り、みんなの集計を受け取る（プライバシーポリシー 2 章） -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- 通知プラグインが追加する正確アラーム権限は外す。Google Play はアラーム/カレンダーアプリ以外に認めず、通勤リマインドは数分ずれても困らない -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
 </manifest>

@@ -255,6 +255,7 @@ async function loadShared(route, daytype, slot) {
 
 function renderShare() {
   $("share").checked = !!data.share;
+  $("device-id").textContent = data.device.slice(0, 8);
   $("share-ask").hidden = data.share !== undefined; // まだ聞いていない時だけ出す
 }
 function setShare(on) {
