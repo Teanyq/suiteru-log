@@ -303,10 +303,15 @@ const currentRoute = () => data.routes.find((r) => r.id === data.current);
 // 乗換メモで階段・エスカレーターがある号車（どの駅かは問わず、その路線で混みやすい号車とみなす）
 const stairsCarsOf = (routeId) => [...new Set(data.memos.filter((m) => m.route === routeId && m.car && m.tags?.some((t) => t === "stairs" || t === "escalator")).map((m) => m.car))];
 
+function carsAt(route, d, shared = []) {
+  const est = carEstimates({ route: route.id, cars: route.cars ?? 10, dow: d.getDay(), slot: slotOf(localIso(d)), now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id), shared });
+  const min = Math.min(...est.map((c) => c.value));
+  return { est, bests: est.filter((c) => c.value - min < 0.05) }; // 同点（両端など）はまとめて出す
+}
+
 function renderCars() {
   const route = currentRoute();
   if (!route) return;
-  const cars = route.cars ?? 10;
   const d = timeInput() ?? new Date();
   const slot = slotOf(localIso(d)), daytype = isWeekend(d.getDay()) ? "we" : "wd";
   const hit = sharedCache.get(new URLSearchParams({ c: route.line?.c ?? "", l: route.line?.l ?? "", dir: dirOf(route) ?? "", daytype, slot: String(slot) }).toString());
@@ -315,9 +320,7 @@ function renderCars() {
     renderCars.loading = true;
     loadShared(route, daytype, slot).then((r) => { renderCars.loading = false; if (r && r !== hit && (r.cars.length || r.moods.length)) renderCars(); });
   }
-  const est = carEstimates({ route: route.id, cars, dow: d.getDay(), slot, now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id), shared });
-  const min = Math.min(...est.map((c) => c.value));
-  const bests = est.filter((c) => c.value - min < 0.05); // 同点（両端など）はまとめて出す
+  const { est, bests } = carsAt(route, d, shared);
   const best = bests[0];
   const reports = est.reduce((n, c) => n + c.n, 0), sharedN = est.reduce((n, c) => n + c.shared, 0);
   const parts = [sharedN ? `みんなの報告 ${sharedN} 件` : "", reports ? `あなたの記録 ${reports} 件` : ""].filter(Boolean);
@@ -380,6 +383,7 @@ function record(level, label) {
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
   setTags([]); // 印は1回ごと
   setMood(null);
+  refreshReminder();
   render();
   const hit = guessHit(guess, level);
   const cheer = (hit === null ? "" : hit ? "予想的中！+5pt　" : "予想ハズレ…次こそ　") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
@@ -610,7 +614,7 @@ $("remind").addEventListener("click", async () => {
   try {
     if ((await notif.requestPermissions()).display !== "granted") return toast("通知が許可されていません。端末の設定アプリで「すいてるログ」の通知を許可してください");
     await cancelReminder();
-    await notif.schedule({ notifications: reminderNotifications(t) });
+    await notif.schedule({ notifications: reminderNotifications(t, reminderBody(t)) });
   } catch {
     return toast("通知をセットできませんでした");
   }
@@ -627,6 +631,27 @@ $("remind-off").addEventListener("click", async () => {
   toast("通知を止めました");
 });
 renderReminder();
+// 朝の一言: 通知の本文にその曜日・時刻のおすすめ号車を入れる。予想は記録で変わるので、起動時と記録後に入れ直す
+function reminderBody(hhmm) {
+  return (dow) => {
+    const d = new Date();
+    d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7));
+    const [h, m] = hhmm.split(":").map(Number);
+    d.setHours(h, m, 0, 0);
+    const route = data.routes.find((r) => r.id === routeForTime(data.logs, d)) ?? currentRoute();
+    if (!route?.line) return null;
+    const { bests } = carsAt(route, d);
+    return `${route.name}：今日のおすすめは${bests.map((c) => `${c.car}号車`).join("・")}。乗ったらワンタップで記録`;
+  };
+}
+async function refreshReminder() {
+  if (!notif || !data.reminder) return;
+  try {
+    await cancelReminder();
+    await notif.schedule({ notifications: reminderNotifications(data.reminder, reminderBody(data.reminder)) });
+  } catch {}
+}
+refreshReminder();
 $("import").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   e.target.value = "";

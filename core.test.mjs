@@ -208,6 +208,12 @@ test("reminderNotifications: one repeating notification per weekday (Capacitor w
   assert.equal(reminderNotifications("bad"), null);
 });
 
+test("reminderNotifications: each weekday can carry its own one-line body (today's best car)", () => {
+  const ns = reminderNotifications("07:40", (dow) => (dow === 1 ? "月曜は 1号車" : null));
+  assert.equal(ns[0].body, "月曜は 1号車");
+  assert.equal(ns[1].body, "すいてるログでワンタップ記録"); // 出せない日はいつもの文面
+});
+
 const LINES = [
   { c: "東急電鉄", l: "田園都市線", k: 4, r: ["関東"], s: ["中央林間", "つきみ野", "渋谷"] },
   { c: "東急電鉄", l: "東横線", k: 4, r: ["関東"], s: ["横浜", "渋谷"] },

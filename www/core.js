@@ -219,14 +219,15 @@ export function recParam(search) {
 // アプリ版のリマインド（@capacitor/local-notifications 用）。平日の指定時刻に毎週くり返す。
 // Capacitor の weekday は 1=日曜 … 7=土曜なので月〜金は 2〜6
 export const REMINDER_IDS = [101, 102, 103, 104, 105];
-export function reminderNotifications(hhmm) {
+// bodyFor(曜日 1=月〜5=金) で曜日ごとの本文（例: 今日のおすすめ号車）。null ならいつもの文面
+export function reminderNotifications(hhmm, bodyFor = () => null) {
   const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
   if (!m) return null;
   const [hour, minute] = [Number(m[1]), Number(m[2])];
   return REMINDER_IDS.map((id, i) => ({
     id,
     title: "今日の電車の混み具合は？",
-    body: "すいてるログでワンタップ記録",
+    body: bodyFor(i + 1) ?? "すいてるログでワンタップ記録",
     schedule: { on: { weekday: i + 2, hour, minute }, allowWhileIdle: true },
     // 正確アラーム権限は使わない（Play の制限対象）。true のままだと設定画面へ飛ばされる
     isExactNotification: false,
