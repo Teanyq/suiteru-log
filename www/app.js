@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -317,10 +317,12 @@ function renderCarPick() {
 function renderPoints() {
   const pts = pointsOf(data.logs);
   const { title, next, toNext } = titleOf(pts);
-  $("points").replaceChildren(el("strong", { textContent: title }), ` ${pts}pt`, next ? el("small", { textContent: `（${next}まであと${toNext}pt）` }) : "");
+  const g = guessStats(data.logs);
+  $("points").replaceChildren(el("strong", { textContent: title }), ` ${pts}pt`, next ? el("small", { textContent: `（${next}まであと${toNext}pt）` }) : "",
+    g.n ? el("small", { textContent: ` 予想的中 ${g.hit}/${g.n}` }) : "");
 }
 
-const render = () => { renderRoutes(); renderShare(); renderPoints(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+const render = () => { renderRoutes(); renderShare(); renderPoints(); renderGuess(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 // 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
 // Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）
@@ -333,6 +335,8 @@ function record(level, label) {
   const log = { route: data.current, t: localIso(d), level };
   const car = currentRoute()?.lastCar;
   if (car) log.car = car;
+  const guess = currentGuess();
+  if (guess) { log.guess = guess; delete data.guess; }
   const tags = [...activeTags, ...(data.periodMode ? ["period"] : [])];
   if (tags.length) log.tags = tags;
   const before = pointsOf(data.logs);
@@ -345,10 +349,29 @@ function record(level, label) {
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
   setTags([]); // 印は1回ごと
   render();
-  const cheer = cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
+  const hit = guessHit(guess, level);
+  const cheer = (hit === null ? "" : hit ? "予想的中！+5pt　" : "予想ハズレ…次こそ　") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
   toast(`${$("time").value}${car ? ` ${car}号車` : ""} に「${label}」を記録 +${gained}pt${note}
 ${cheer}`, () => removeLog(log));
 }
+
+// 号車予想ゲーム: 予想は今日・この路線だけ有効。もう一度押すと取り消し
+const currentGuess = () => (data.guess?.route === data.current && data.guess.day === todayKey() ? data.guess.v : undefined);
+function renderGuess() {
+  const g = currentGuess();
+  for (const b of $("guess").querySelectorAll("button")) b.ariaPressed = String(b.dataset.v === g);
+}
+$("guess").append(...[["low", "空いてると思う"], ["high", "混んでると思う"]].map(([v, label]) => {
+  const b = el("button", { type: "button", textContent: label, ariaPressed: "false" });
+  b.dataset.v = v;
+  b.onclick = () => {
+    if (currentGuess() === v) delete data.guess;
+    else data.guess = { route: data.current, day: todayKey(), v };
+    save();
+    renderGuess();
+  };
+  return b;
+}));
 
 const activeTags = new Set();
 function setTags(list) {

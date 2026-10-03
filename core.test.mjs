@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -390,4 +390,25 @@ test("cheerOf: crowded beats streak beats weekday beats empty, otherwise rotates
   assert.match(cheerOf({ level: 1, streakDays: 3, dow: 3, n: 0 }), /空いて/);
   const plain = new Set([0, 1, 2, 3].map((n) => cheerOf({ level: 3, streakDays: 1, dow: 3, n })));
   assert.ok(plain.size > 1, "日替わりで変わる");
+});
+
+test("guess game: low hits on 1-2, high hits on 4-5, and each hit is +5pt", () => {
+  assert.equal(guessHit("low", 2), true);
+  assert.equal(guessHit("low", 3), false);
+  assert.equal(guessHit("high", 4), true);
+  assert.equal(guessHit("high", 2), false);
+  assert.equal(guessHit(undefined, 1), null); // 予想していない
+  const rec = (level, guess) => ({ route: "r1", t: "2026-09-28T07:40:00", level, ...(guess ? { guess } : {}) });
+  assert.equal(pointsOf([rec(1, "low")]), 15);
+  assert.equal(pointsOf([rec(3, "low")]), 10);
+  assert.deepEqual(guessStats([rec(1, "low"), rec(3, "high"), rec(5, "high"), rec(2)]), { n: 3, hit: 2 });
+});
+
+test("parseBackup keeps a valid guess and drops a bad one", () => {
+  const d = parseBackup(JSON.stringify({
+    routes: [{ id: "r1", name: "A" }],
+    logs: [{ route: "r1", t: "2026-10-01T07:40:00", level: 1, guess: "low" }, { route: "r1", t: "2026-10-01T07:41:00", level: 1, guess: "maybe" }],
+  }));
+  assert.equal(d.logs[0].guess, "low");
+  assert.equal(d.logs[1].guess, undefined);
 });
