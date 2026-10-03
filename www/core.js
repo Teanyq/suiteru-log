@@ -326,7 +326,8 @@ export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [
 // ── v2: ポイントと称号（記録から毎回計算し直す。取り消せばポイントも戻る）──
 export function pointsOf(logs) {
   let pts = 0;
-  for (const l of logs) pts += 10 + (l.car ? 5 : 0);
+  // 号車つき +5、ぎゅうぎゅう側（4〜5）は「戦士ボーナス」+10（つらい日ほど報われる）
+  for (const l of logs) pts += 10 + (l.car ? 5 : 0) + (l.level >= 4 ? 10 : 0);
   // 平日の連続記録 5 日ごとに +50（土日はまたいでも途切れない）
   const days = [...new Set(logs.map((l) => l.t.slice(0, 10)))]
     .filter((k) => !isWeekend(new Date(`${k}T12:00:00`).getDay())).sort();
@@ -345,6 +346,17 @@ export function pointsOf(logs) {
 }
 
 const TITLES = [[0, "見習い乗客"], [100, "通勤ルーキー"], [300, "号車ハンター"], [700, "ベテラン車掌"], [1500, "路線マイスター"], [3000, "伝説の運転士"]];
+// 記録したときの労いの一言。混雑 > 連続記録の節目 > 曜日 > 空いていた、の順で 1 つ。どれでもなければ日替わり
+const CHEERS = ["今日もえらい", "乗れただけで100点", "おつかれさま、いってらっしゃい", "記録ありがとう。誰かの号車選びに役立ちます", "深呼吸ひとつ、いい一日を"];
+export function cheerOf({ level, streakDays, dow, n }) {
+  if (level >= 4) return "ぎゅうぎゅうの中おつかれさま。戦士ボーナス +10pt";
+  if (streakDays > 0 && streakDays % 5 === 0) return `平日${streakDays}日連続！続けてるのがすごい`;
+  if (dow === 1) return "月曜の朝をのりきった。今週もえらい";
+  if (dow === 5) return "金曜！あと少しで週末";
+  if (level <= 2) return "空いててラッキー。いい一日になりそう";
+  return CHEERS[n % CHEERS.length];
+}
+
 export function titleOf(points) {
   const i = TITLES.findLastIndex(([min]) => points >= min);
   const next = TITLES[i + 1];

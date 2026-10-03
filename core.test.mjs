@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -373,4 +373,21 @@ test("carEstimates: one extreme record doesn't flatten the whole train into ties
   const min = Math.min(...est.map((c) => c.value));
   const ties = est.filter((c) => c.value - min < 0.05).length;
   assert.ok(ties <= 2, `同点が ${ties} 両もある`);
+});
+
+test("pointsOf: crowded rides (4-5) earn a +10 warrior bonus", () => {
+  const rec = (level) => ({ route: "r1", t: "2026-09-28T07:40:00", level });
+  assert.equal(pointsOf([rec(3)]), 10);
+  assert.equal(pointsOf([rec(4)]), 20);
+  assert.equal(pointsOf([rec(5)]), 20);
+});
+
+test("cheerOf: crowded beats streak beats weekday beats empty, otherwise rotates", () => {
+  assert.match(cheerOf({ level: 5, streakDays: 5, dow: 1, n: 0 }), /戦士/);
+  assert.match(cheerOf({ level: 3, streakDays: 10, dow: 1, n: 0 }), /10日連続/);
+  assert.match(cheerOf({ level: 3, streakDays: 3, dow: 1, n: 0 }), /月曜/);
+  assert.match(cheerOf({ level: 3, streakDays: 3, dow: 5, n: 0 }), /金曜/);
+  assert.match(cheerOf({ level: 1, streakDays: 3, dow: 3, n: 0 }), /空いて/);
+  const plain = new Set([0, 1, 2, 3].map((n) => cheerOf({ level: 3, streakDays: 1, dow: 3, n })));
+  assert.ok(plain.size > 1, "日替わりで変わる");
 });

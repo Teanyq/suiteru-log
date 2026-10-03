@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -79,7 +79,7 @@ function renderForecast() {
 
 let toastTimer;
 function toast(msg, undo) {
-  const kids = [msg];
+  const kids = [el("span", { textContent: msg })];
   if (undo) kids.push(el("button", { type: "button", textContent: "取り消す", onclick: () => { undo(); toast("取り消しました"); } }));
   $("toast").replaceChildren(...kids);
   clearTimeout(toastTimer);
@@ -345,7 +345,9 @@ function record(level, label) {
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
   setTags([]); // 印は1回ごと
   render();
-  toast(`${$("time").value}${car ? ` ${car}号車` : ""} に「${label}」を記録 +${gained}pt${note}`, () => removeLog(log));
+  const cheer = cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
+  toast(`${$("time").value}${car ? ` ${car}号車` : ""} に「${label}」を記録 +${gained}pt${note}
+${cheer}`, () => removeLog(log));
 }
 
 const activeTags = new Set();
