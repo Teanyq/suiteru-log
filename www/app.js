@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -644,10 +644,21 @@ $("export").addEventListener("click", exportBackup);
 // アプリ版は端末のローカル通知、Web 版は定時通知ができないので .ics をカレンダーに入れてもらう
 const notif = isNativeApp ? window.Capacitor.Plugins.LocalNotifications : null;
 const cancelReminder = () => notif.cancel({ notifications: REMINDER_IDS.map((id) => ({ id })) });
+// 通知のボタン（座れる／立つけど余裕／混んでる）を押したら、開いてすぐ記録する
+if (notif) {
+  notif.registerActionTypes({ types: [REPORT_ACTIONS] }).catch(() => {});
+  notif.addListener("localNotificationActionPerformed", ({ actionId }) => {
+    const level = Number(actionId?.match(/^l([1-5])$/)?.[1]);
+    if (!level) return;
+    autoRoute();
+    setTime();
+    record(level, LEVELS[level - 1][1]);
+  });
+}
 function renderReminder() {
   if (!notif) return;
   $("remind").textContent = "通知をセット";
-  $("remind-note").textContent = data.reminder ? `平日 ${data.reminder} に、今日のおすすめ号車を通知します。` : "平日のこの時刻に、今日のおすすめ号車を通知します。";
+  $("remind-note").textContent = data.reminder ? `平日 ${data.reminder} に、今日のおすすめ号車を通知します。` : "平日のこの時刻に、今日のおすすめ号車を通知します。通知のボタン（座れる・立つけど余裕・混んでる）からそのまま記録できます。";
   $("remind-off").hidden = !data.reminder;
   if (data.reminder) $("remind-time").value = data.reminder;
 }

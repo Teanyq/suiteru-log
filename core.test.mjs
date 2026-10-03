@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -205,6 +205,8 @@ test("reminderNotifications: one repeating notification per weekday (Capacitor w
   assert.deepEqual(ns.map((n) => n.schedule.on.weekday), [2, 3, 4, 5, 6]);
   assert.ok(ns.every((n) => n.schedule.on.hour === 7 && n.schedule.on.minute === 40 && n.schedule.allowWhileIdle));
   assert.ok(ns.every((n) => n.isExactNotification === false)); // 正確アラーム権限なしで設定画面に飛ばさない
+  assert.ok(ns.every((n) => n.actionTypeId === REPORT_ACTIONS.id)); // 通知のボタンから直接記録
+  assert.deepEqual(REPORT_ACTIONS.actions.map((a) => a.id), ["l2", "l3", "l4"]);
   assert.equal(reminderNotifications("bad"), null);
 });
 

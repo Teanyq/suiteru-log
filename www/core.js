@@ -230,6 +230,9 @@ export function recParam(search) {
 // アプリ版のリマインド（@capacitor/local-notifications 用）。平日の指定時刻に毎週くり返す。
 // Capacitor の weekday は 1=日曜 … 7=土曜なので月〜金は 2〜6
 export const REMINDER_IDS = [101, 102, 103, 104, 105];
+// 通知のボタンから直接記録する（Android は最大 3 つ）。id の数字が混雑度
+export const REPORT_ACTIONS = { id: "REPORT", actions: [{ id: "l2", title: "座れる" }, { id: "l3", title: "立つけど余裕" }, { id: "l4", title: "混んでる" }] };
+
 // bodyFor(曜日 1=月〜5=金) で曜日ごとの本文（例: 今日のおすすめ号車）。null ならいつもの文面
 export function reminderNotifications(hhmm, bodyFor = () => null) {
   const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
@@ -242,6 +245,7 @@ export function reminderNotifications(hhmm, bodyFor = () => null) {
     schedule: { on: { weekday: i + 2, hour, minute }, allowWhileIdle: true },
     // 正確アラーム権限は使わない（Play の制限対象）。true のままだと設定画面へ飛ばされる
     isExactNotification: false,
+    actionTypeId: REPORT_ACTIONS.id,
   }));
 }
 
