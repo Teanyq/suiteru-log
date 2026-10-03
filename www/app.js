@@ -47,7 +47,10 @@ const pad = (n) => String(n).padStart(2, "0");
 const localIso = (d) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
 
+// 時刻を手で変えていなければ（timeAuto）、記録や表示のたびに今の時刻へ追従する（開いたまま置いても古くならない）
+let timeAuto = true;
 function setTime(shiftMin = 0) {
+  timeAuto = shiftMin === 0;
   const d = new Date(Date.now() + shiftMin * 60000);
   $("time").value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   renderForecast();
@@ -389,7 +392,7 @@ function renderPoints() {
     g.n ? el("small", { textContent: ` 予想的中 ${g.hit}/${g.n}` }) : "");
 }
 
-const render = () => { renderRoutes(); renderShare(); renderPoints(); renderRecap(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+const render = () => { if (timeAuto) setTime(); renderRoutes(); renderShare(); renderPoints(); renderRecap(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 // 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
 // Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）
@@ -397,6 +400,7 @@ const haptics = isNativeApp ? window.Capacitor.Plugins.Haptics : null;
 const buzz = () => (haptics ? haptics.impact({ style: "LIGHT" }).catch(() => {}) : navigator.vibrate?.(15));
 
 function record(level, label) {
+  if (timeAuto) setTime();
   const d = timeInput();
   if (!d) return toast("時刻を入れてください");
   const log = { route: data.current, t: localIso(d), level };
@@ -462,7 +466,7 @@ $("levels").append(...LEVELS.map(([n, label]) =>
   el("button", { type: "button", style: `background:var(--l${n})`, onclick: () => record(n, label) },
     el("span", { className: "n", textContent: n }), label)));
 
-$("time").addEventListener("input", () => { renderForecast(); renderCars(); });
+$("time").addEventListener("input", () => { timeAuto = false; renderForecast(); renderCars(); });
 document.querySelectorAll("[data-shift]").forEach((b) =>
   b.addEventListener("click", () => setTime(Number(b.dataset.shift))));
 
