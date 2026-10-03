@@ -92,7 +92,7 @@
 - [x] ポイントと称号（報告・連続日数で加算。端末内）
 
 ### Stage 20（v2 段階 B・サーバー。要: ユーザーの Cloudflare アカウント）
-- [ ] Cloudflare Workers + D1 の API（報告の受付・号車ごとの集計・報告間隔の制限）
+- [x] Cloudflare Workers + D1 の API（報告の受付・号車ごとの集計・報告間隔の制限）: https://suiteru-api.suiteru-server.workers.dev （server/）
 - [ ] アプリから匿名で送信（共有のオン/オフ）、みんなのデータで推定、インターネット権限
 - [ ] プライバシーポリシー・データ セーフティの改定
 - [ ] いたずら対策（外れ値の保留・端末ごとの信頼度）

@@ -1,0 +1,10 @@
+{
+  // すいてるログ v2 の報告 API（docs/SPEC-v2.md）
+  "name": "suiteru-api",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-03",
+  "d1_databases": [
+    { "binding": "DB", "database_name": "suiteru-reports", "database_id": "bbdc25da-4276-4da3-a7a0-88ec962aee07" }
+  ],
+  "observability": { "enabled": true }
+}
