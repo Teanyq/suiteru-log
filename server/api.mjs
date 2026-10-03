@@ -24,21 +24,45 @@ export function parseReport(body) {
   return { device, line: `${c}|${l}`, dir, daytype, slot, car, level, mood };
 }
 
-// 号車ごとの集計。同じ枠は重み 1、前後 1 枠は 0.5、さらに時間で半減
+// いたずら対策（docs/SPEC-v2.md）
+export const DEVICE_CAP = 2;   // 1 台の端末が 1 号車に与えられる重みの上限（大量投稿で押し切れない）
+export const DAILY_CAP = 30;   // 1 台の端末が 1 日に送れる報告の数
+
+// ほかの 2 台以上の端末と大きく食い違い（中央値から 2 段階以上）、誰にも裏付けられていない（±1 以内の報告がない）報告は保留
+function isHeld(r, group) {
+  const others = group.filter((o) => o.device !== r.device);
+  if (new Set(others.map((o) => o.device)).size < 2) return false;
+  if (others.some((o) => Math.abs(o.level - r.level) <= 1)) return false;
+  const lv = others.map((o) => o.level).sort((a, b) => a - b);
+  const median = (lv[(lv.length - 1) >> 1] + lv[lv.length >> 1]) / 2;
+  return Math.abs(r.level - median) >= 2;
+}
+
+// 号車ごとの集計。同じ枠は重み 1、前後 1 枠は 0.5、さらに時間で半減。保留の報告は除き、端末ごとの重みは DEVICE_CAP まで
 export function aggregate(rows, slot, now) {
-  const cars = new Map();
+  const groups = new Map();
   for (const r of rows) {
     const ds = Math.abs(r.slot - slot);
     if (ds > 1) continue;
     const ageDays = Math.max(0, (now - r.created_at) / 86400000);
     if (ageDays > WINDOW_DAYS) continue;
-    const w = (ds === 0 ? 1 : 0.5) * 0.5 ** (ageDays / HALF_LIFE_DAYS);
-    const e = cars.get(r.car) ?? { car: r.car, w: 0, sum: 0, n: 0 };
-    e.w += w; e.sum += w * r.level; e.n++;
-    cars.set(r.car, e);
+    const g = groups.get(r.car) ?? [];
+    g.push({ ...r, w: (ds === 0 ? 1 : 0.5) * 0.5 ** (ageDays / HALF_LIFE_DAYS) });
+    groups.set(r.car, g);
   }
-  return [...cars.values()].sort((a, b) => a.car - b.car)
-    .map(({ car, w, sum, n }) => ({ car, w: Math.round(w * 1000) / 1000, mean: Math.round((sum / w) * 100) / 100, n }));
+  const out = [];
+  for (const [car, g] of groups) {
+    const kept = g.filter((r) => !isHeld(r, g));
+    const perDevice = new Map();
+    for (const r of kept) perDevice.set(r.device, (perDevice.get(r.device) ?? 0) + r.w);
+    let w = 0, sum = 0;
+    for (const r of kept) {
+      const rw = r.w * Math.min(1, DEVICE_CAP / perDevice.get(r.device));
+      w += rw; sum += rw * r.level;
+    }
+    if (kept.length) out.push({ car, w: Math.round(w * 1000) / 1000, mean: Math.round((sum / w) * 100) / 100, n: kept.length });
+  }
+  return out.sort((a, b) => a.car - b.car);
 }
 
 // 日本時間の今日 0 時（Unix ms）。気分スタンプは当日限り

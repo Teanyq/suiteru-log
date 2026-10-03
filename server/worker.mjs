@@ -1,5 +1,5 @@
 // Cloudflare Worker: 匿名の号車混雑報告の受付と集計（docs/SPEC-v2.md）
-import { parseReport, aggregate, moodsOf, dayStartJst, RATE_LIMIT_MS, WINDOW_DAYS, HELPED_DAYS } from "./api.mjs";
+import { parseReport, aggregate, moodsOf, dayStartJst, RATE_LIMIT_MS, WINDOW_DAYS, HELPED_DAYS, DAILY_CAP } from "./api.mjs";
 
 // アプリ（Android: https://localhost / iOS: capacitor://localhost）と Web 版からだけ受け付ける
 const ORIGINS = new Set(["https://teanyq.github.io", "https://localhost", "capacitor://localhost", "http://localhost:5180"]);
@@ -29,6 +29,8 @@ export default {
       const recent = await env.DB.prepare("SELECT 1 FROM reports WHERE device = ? AND line = ? AND dir = ? AND car = ? AND created_at > ? LIMIT 1")
         .bind(r.device, r.line, r.dir, r.car, now - RATE_LIMIT_MS).first();
       if (recent) return json({ ok: false, reason: "too_soon" }, 429, cors);
+      const today = await env.DB.prepare("SELECT COUNT(*) AS n FROM reports WHERE device = ? AND created_at >= ?").bind(r.device, dayStartJst(now)).first();
+      if (today.n >= DAILY_CAP) return json({ ok: false, reason: "daily_cap" }, 429, cors);
       await env.DB.prepare("INSERT INTO reports (device, line, dir, daytype, slot, car, level, mood, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(r.device, r.line, r.dir, r.daytype, r.slot, r.car, r.level, r.mood, now).run();
       return json({ ok: true }, 201, cors);
@@ -50,7 +52,7 @@ export default {
         ]);
       }
       const { results } = await env.DB.prepare(
-        "SELECT car, slot, level, created_at FROM reports WHERE line = ? AND dir = ? AND daytype = ? AND slot BETWEEN ? AND ? AND created_at > ? AND device != ? LIMIT 5000")
+        "SELECT device, car, slot, level, created_at FROM reports WHERE line = ? AND dir = ? AND daytype = ? AND slot BETWEEN ? AND ? AND created_at > ? AND device != ? LIMIT 5000")
         // 自分の報告はアプリ側で記録として数えるので除く（二重に数えない）
         .bind(p.line, p.dir, p.daytype, slot - 1, slot + 1, now - WINDOW_DAYS * 86400000, device).all();
       // 今日のこの路線・方面の気分スタンプ（号車のあだ名用。3 人未満の号車は返さない）
