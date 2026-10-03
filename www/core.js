@@ -111,7 +111,10 @@ export function parseBackup(text) {
     })
     // 駅と、号車・目的・文字のどれか 1 つは必要（中身のないメモは捨てる）
     .filter((m) => ids.has(m.route) && m.station && (m.car || m.tags || m.text));
-  return { routes, logs, memos, current: ids.has(raw.current) ? raw.current : routes[0].id };
+  const out = { routes, logs, memos, current: ids.has(raw.current) ? raw.current : routes[0].id };
+  // 共有番号も引き継ぐ（機種変更してもランキング・「役に立った人数」・削除依頼の番号が続く）
+  if (typeof raw.device === "string" && raw.device.length > 0 && raw.device.length <= 64) out.device = raw.device;
+  return out;
 }
 
 // 平日の指定時刻に通知するカレンダー予定（.ics）。PWA単体では定時通知できないので端末のカレンダーに任せる。

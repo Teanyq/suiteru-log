@@ -704,6 +704,7 @@ $("import").addEventListener("change", async (e) => {
   catch { return toast("すいてるログのバックアップではないようです"); }
   if (!confirm(`路線${next.routes.length}件・記録${next.logs.length}件を読み込みます。今のデータは置き換わります。`)) return;
   Object.assign(data, next, { lastExport: todayKey() }); // 読み込んだファイル自体がバックアップ
+  delete data.helped; delete data.rank; // 共有番号が変わり得るので、サーバーから聞き直す
   save();
   render();
   toast("読み込みました");

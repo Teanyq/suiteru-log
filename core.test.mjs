@@ -479,3 +479,10 @@ test("carEstimates: shared reports also move the baseline, so unreported cars fo
   assert.ok(est[1].value < 2.5, `報告のない 2 号車も空いている側に寄る（${est[1].value}）`);
   assert.ok(est[0].value < est[1].value, "報告のある 1 号車はいちばん空いている");
 });
+
+test("parseBackup carries the share ID over to the new phone (and ignores a bad one)", () => {
+  const base = { routes: [{ id: "r1", name: "A" }], logs: [] };
+  assert.equal(parseBackup(JSON.stringify({ ...base, device: "abc-123" })).device, "abc-123");
+  assert.equal("device" in parseBackup(JSON.stringify({ ...base, device: "x".repeat(65) })), false);
+  assert.equal("device" in parseBackup(JSON.stringify(base)), false);
+});
