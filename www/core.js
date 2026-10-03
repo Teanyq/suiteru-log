@@ -79,11 +79,12 @@ export function parseBackup(text) {
   const ids = new Set(routes.map((r) => r.id));
   const logs = (Array.isArray(raw.logs) ? raw.logs : [])
     .filter((l) => ids.has(l?.route) && T_RE.test(l?.t) && Number.isInteger(l?.level) && l.level >= 1 && l.level <= 5)
-    .map(({ route, t, level, tags, car, guess }) => {
+    .map(({ route, t, level, tags, car, guess, mood }) => {
       const ok = Array.isArray(tags) ? [...new Set(tags)].filter((x) => Object.hasOwn(TAGS, x)) : [];
       const log = ok.length ? { route, t, level, tags: ok } : { route, t, level };
       if (Number.isInteger(car) && car >= 1 && car <= 20) log.car = car; // v2: 号車つきの報告
       if (guess === "low" || guess === "high") log.guess = guess; // 号車予想ゲーム
+      if (Object.hasOwn(MOODS, mood)) log.mood = mood; // 気分スタンプ
       return log;
     });
   const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -347,6 +348,10 @@ export function pointsOf(logs) {
 }
 
 const TITLES = [[0, "見習い乗客"], [100, "通勤ルーキー"], [300, "号車ハンター"], [700, "ベテラン車掌"], [1500, "路線マイスター"], [3000, "伝説の運転士"]];
+// 気分スタンプ（任意 1 タップ）。報告に添え、当日 3 人以上そろった号車にあだ名をつける（集計は server/api.mjs）
+export const MOODS = { sleepy: ["😪", "眠い", "おねむ号"], fight: ["💪", "がんばる", "がんばり号"], tired: ["🫠", "だるい", "ぐったり号"], happy: ["😊", "ごきげん", "ごきげん号"] };
+export const nicknameOf = (mood) => MOODS[mood]?.[2];
+
 // 号車予想ゲーム: 乗る前に「空いてる（1〜2）／混んでる（4〜5）」を予想し、記録で答え合わせ。予想なしは null
 export const guessHit = (guess, level) => (guess === "low" ? level <= 2 : guess === "high" ? level >= 4 : null);
 export function guessStats(logs) {
@@ -379,5 +384,5 @@ export function reportPayload(device, route, log) {
   const dir = dirOf(route);
   if (!route.line || !dir || !log.car || log.tags?.length) return null;
   const d = new Date(log.t);
-  return { device, line: route.line, dir, daytype: isWeekend(d.getDay()) ? "we" : "wd", slot: slotOf(log.t), car: log.car, level: log.level };
+  return { device, line: route.line, dir, daytype: isWeekend(d.getDay()) ? "we" : "wd", slot: slotOf(log.t), car: log.car, level: log.level, ...(log.mood ? { mood: log.mood } : {}) };
 }

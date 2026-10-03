@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, MOODS, nicknameOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -240,17 +240,18 @@ async function flushOutbox() {
 const sharedCache = new Map();
 async function loadShared(route, daytype, slot) {
   const dir = dirOf(route);
-  if (!data.share || !route.line || !dir) return [];
+  if (!data.share || !route.line || !dir) return null;
   const key = new URLSearchParams({ c: route.line.c, l: route.line.l, dir, daytype, slot: String(slot) }).toString(), hit = sharedCache.get(key);
   // 自分の報告はサーバー側で除いてもらう（手元の記録として数えるので二重にしない）
   const q = `${key}&${new URLSearchParams({ device: data.device })}`;
-  if (hit && Date.now() - hit.at < 60000) return hit.cars;
+  if (hit && Date.now() - hit.at < 60000) return hit;
   try {
     const res = await fetch(`${API}/v1/cars?${q}`);
-    const cars = res.ok ? (await res.json()).cars : [];
-    sharedCache.set(key, { at: Date.now(), cars });
-    return cars;
-  } catch { return []; }
+    const body = res.ok ? await res.json() : {};
+    const entry = { at: Date.now(), cars: body.cars ?? [], moods: body.moods ?? [] };
+    sharedCache.set(key, entry);
+    return entry;
+  } catch { return null; }
 }
 
 function renderShare() {
@@ -281,10 +282,11 @@ function renderCars() {
   const cars = route.cars ?? 10;
   const d = timeInput() ?? new Date();
   const slot = slotOf(localIso(d)), daytype = isWeekend(d.getDay()) ? "we" : "wd";
-  const shared = sharedCache.get(new URLSearchParams({ c: route.line?.c ?? "", l: route.line?.l ?? "", dir: dirOf(route) ?? "", daytype, slot: String(slot) }).toString())?.cars ?? [];
+  const hit = sharedCache.get(new URLSearchParams({ c: route.line?.c ?? "", l: route.line?.l ?? "", dir: dirOf(route) ?? "", daytype, slot: String(slot) }).toString());
+  const shared = hit?.cars ?? [], moods = hit?.moods ?? [];
   if (data.share && route.line && !renderCars.loading) {
     renderCars.loading = true;
-    loadShared(route, daytype, slot).then((cars) => { renderCars.loading = false; if (cars.length && cars !== shared) renderCars(); });
+    loadShared(route, daytype, slot).then((r) => { renderCars.loading = false; if (r && r !== hit && (r.cars.length || r.moods.length)) renderCars(); });
   }
   const est = carEstimates({ route: route.id, cars, dow: d.getDay(), slot, now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id), shared });
   const min = Math.min(...est.map((c) => c.value));
@@ -301,6 +303,7 @@ function renderCars() {
       ...est.map((c) => el("div", { className: `car-cell${c.stars === 1 ? " guess" : ""}${bests.includes(c) ? " best" : ""}`, style: `background:${color(c.value)}` },
         el("b", { textContent: c.car }), el("small", { textContent: "★".repeat(c.stars) })))),
     el("p", { className: "note", textContent: basis }),
+    moods.length ? el("p", { className: "nicknames", textContent: `今日の号車: ${moods.map((m) => `${m.car}号車＝${MOODS[m.mood][0]}${nicknameOf(m.mood)}（${m.n}人）`).join("、")}` }) : "",
   );
 }
 
@@ -339,6 +342,7 @@ function record(level, label) {
   if (guess) { log.guess = guess; delete data.guess; }
   const tags = [...activeTags, ...(data.periodMode ? ["period"] : [])];
   if (tags.length) log.tags = tags;
+  if (activeMood) log.mood = activeMood;
   const before = pointsOf(data.logs);
   data.logs.push(log);
   const gained = pointsOf(data.logs) - before;
@@ -348,6 +352,7 @@ function record(level, label) {
   buzz();
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";
   setTags([]); // 印は1回ごと
+  setMood(null);
   render();
   const hit = guessHit(guess, level);
   const cheer = (hit === null ? "" : hit ? "予想的中！+5pt　" : "予想ハズレ…次こそ　") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
@@ -372,6 +377,19 @@ $("guess").append(...[["low", "空いてると思う"], ["high", "混んでる�
   };
   return b;
 }));
+
+// 気分スタンプ（任意・1回ごと）。共有オンなら報告に添えて、号車のあだ名に使う
+let activeMood = null;
+function setMood(m) {
+  activeMood = m;
+  for (const b of $("moods").querySelectorAll("button")) b.ariaPressed = String(b.dataset.mood === m);
+}
+$("moods").append(...Object.entries(MOODS).map(([key, [emoji, label]]) => {
+  const b = el("button", { type: "button", textContent: `${emoji}${label}`, ariaPressed: "false" });
+  b.dataset.mood = key;
+  b.onclick = () => setMood(activeMood === key ? null : key);
+  return b;
+}), el("span", { className: "tags-hint", textContent: "← 気分も添える（任意）" }));
 
 const activeTags = new Set();
 function setTags(list) {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, MOODS, nicknameOf } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -411,4 +411,15 @@ test("parseBackup keeps a valid guess and drops a bad one", () => {
   }));
   assert.equal(d.logs[0].guess, "low");
   assert.equal(d.logs[1].guess, undefined);
+});
+
+test("mood: kept in backups, sent with reports, and turned into a car nickname", () => {
+  const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }],
+    logs: [{ route: "r1", t: "2026-10-01T07:40:00", level: 3, mood: "sleepy" }, { route: "r1", t: "2026-10-01T07:41:00", level: 3, mood: "evil" }] }));
+  assert.equal(d.logs[0].mood, "sleepy");
+  assert.equal(d.logs[1].mood, undefined);
+  const route = { id: "r1", name: "x", line: { c: "C", l: "L" }, dir: "D" };
+  assert.equal(reportPayload("dev", route, { t: "2026-10-01T07:40:00", level: 3, car: 2, mood: "happy" }).mood, "happy");
+  assert.equal("mood" in reportPayload("dev", route, { t: "2026-10-01T07:40:00", level: 3, car: 2 }), false);
+  for (const m of Object.keys(MOODS)) assert.match(nicknameOf(m), /号$/);
 });

@@ -91,6 +91,8 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .tags { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .tags button { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; font-size: .85rem; }
 .tags button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.nicknames { margin: 6px 0 0; font-size: .85rem; font-weight: 600; }
+#moods { flex-wrap: wrap; }
 .guess { flex-wrap: wrap; margin: 10px 0 0; }
 .guess .tags-hint { flex-basis: 100%; }
 .tags-hint { color: var(--muted); font-size: .75rem; }
