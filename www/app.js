@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -327,9 +327,9 @@ const currentRoute = () => data.routes.find((r) => r.id === data.current);
 // 乗換メモで階段・エスカレーターがある号車（どの駅かは問わず、その路線で混みやすい号車とみなす）
 const stairsCarsOf = (routeId) => [...new Set(data.memos.filter((m) => m.route === routeId && m.car && m.tags?.some((t) => t === "stairs" || t === "escalator")).map((m) => m.car))];
 
-const sharedHitOf = (route, d) => sharedCache.get(new URLSearchParams({ c: route.line?.c ?? "", l: route.line?.l ?? "", dir: dirOf(route) ?? "", daytype: isWeekend(d.getDay()) ? "we" : "wd", slot: String(slotOf(localIso(d))) }).toString());
+const sharedHitOf = (route, d) => sharedCache.get(new URLSearchParams({ c: route.line?.c ?? "", l: route.line?.l ?? "", dir: dirOf(route) ?? "", daytype: isOffDay(d) ? "we" : "wd", slot: String(slotOf(localIso(d))) }).toString());
 function carsAt(route, d, shared = []) {
-  const est = carEstimates({ route: route.id, cars: route.cars ?? 10, dow: d.getDay(), slot: slotOf(localIso(d)), now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id), shared });
+  const est = carEstimates({ route: route.id, cars: route.cars ?? 10, dow: d.getDay(), slot: slotOf(localIso(d)), now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id), shared, off: isOffDay(d) });
   const min = Math.min(...est.map((c) => c.value));
   return { est, bests: est.filter((c) => c.value - min < 0.05) }; // 同点（両端など）はまとめて出す
 }
@@ -338,7 +338,7 @@ function renderCars() {
   const route = currentRoute();
   if (!route) return;
   const d = timeInput() ?? new Date();
-  const slot = slotOf(localIso(d)), daytype = isWeekend(d.getDay()) ? "we" : "wd";
+  const slot = slotOf(localIso(d)), daytype = isOffDay(d) ? "we" : "wd";
   const hit = sharedHitOf(route, d);
   const shared = hit?.cars ?? [], moods = hit?.moods ?? [], riders = hit?.riders ?? [];
   if (data.share && route.line && !renderCars.loading) {
@@ -731,3 +731,4 @@ if (quick) {
 navigator.storage?.persist?.().catch(() => {});
 // アプリ版（Capacitor）はファイルが同梱済みなので Service Worker は不要（iOS の capacitor:// では登録もできない）
 if (!isNativeApp && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+try { sessionStorage.removeItem("reloaded"); } catch {} // 起動できたので、次にずれた時もまた 1 回読み直せるように

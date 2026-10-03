@@ -155,6 +155,15 @@
   <p>路線・駅データ: 「国土数値情報（鉄道データ）」（国土交通省）を加工して作成</p>
   <p><a href="privacy.html">プライバシーポリシー</a> ・ © 2026 Amicha</p>
 </footer>
+<script>
+// 電波が弱いと新しい app.js と古い core.js が混ざって起動できないことがある（sw.js の 3 秒で控えを返す仕組みのため）。
+// そのときは控えを消して 1 回だけ読み直す
+addEventListener("error", (e) => {
+  if (!/does not provide an export|Importing a module script failed|Failed to fetch dynamically/.test(e.message ?? "")) return;
+  try { if (sessionStorage.getItem("reloaded")) return; sessionStorage.setItem("reloaded", "1"); } catch { return; }
+  caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))).finally(() => location.reload());
+});
+</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>

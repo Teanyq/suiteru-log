@@ -30,6 +30,14 @@ export function aggregate(logs, routeId) {
 }
 
 export const isWeekend = (dow) => dow === 0 || dow === 6;
+// 祝日（内閣府「国民の祝日」CSV より。振替休日・国民の休日を含む）
+// ponytail: 2027 年まで。内閣府は毎年 2 月ごろ翌年分を公開するので、そのたびに足す
+const HOLIDAYS = new Set(["2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20", "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06",
+  "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-22", "2026-09-23", "2026-10-12", "2026-11-03", "2026-11-23",
+  "2027-01-01", "2027-01-11", "2027-02-11", "2027-02-23", "2027-03-21", "2027-03-22", "2027-04-29", "2027-05-03", "2027-05-04", "2027-05-05",
+  "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23", "2027-10-11", "2027-11-03", "2027-11-23"]);
+// 休みの日（土日祝）。号車の予想・みんなの報告の平日/休日・連続記録はこれで分ける
+export const isOffDay = (d) => isWeekend(d.getDay()) || HOLIDAYS.has(dayKey(d));
 
 // 比べるには最低 MIN_TOTAL 件・2 枠いる。その曜日で足りなければ同じ種別（平日/休日）の全曜日で代替する
 export const MIN_TOTAL = 3;
@@ -134,7 +142,6 @@ export function reminderIcs(hhmm, now, url) {
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 // 平日の連続記録日数（全路線合算）。今日まだ未記録なら前の平日から数える。
-// ponytail: 祝日は平日扱いなので途切れる。祝日データを持つなら isWeekend を差し替え
 export function streak(logs, now) {
   const days = new Set(logs.map((l) => l.t.slice(0, 10)));
   const d = new Date(now);
@@ -143,7 +150,7 @@ export function streak(logs, now) {
   if (!todayDone) d.setDate(d.getDate() - 1);
   let count = 0;
   for (;; d.setDate(d.getDate() - 1)) {
-    if (isWeekend(d.getDay())) continue;
+    if (isOffDay(d)) continue;
     if (!days.has(dayKey(d))) break;
     count++;
   }
@@ -151,7 +158,7 @@ export function streak(logs, now) {
     const x = new Date(now);
     x.setHours(12, 0, 0, 0);
     x.setDate(x.getDate() - 6 + i);
-    return { dow: x.getDay(), has: days.has(dayKey(x)), weekend: isWeekend(x.getDay()) };
+    return { dow: x.getDay(), has: days.has(dayKey(x)), weekend: isOffDay(x) };
   });
   return { days: count, todayDone, last7 };
 }
@@ -298,11 +305,11 @@ const PRIOR_WEIGHT = 3; // 事前推定を「報告 3 件分」とみなす
 const HALF_LIFE_DAYS = 30; // 報告の重みが半分になる日数
 
 // その路線・曜日の種類・15分枠（前後 1 枠は半分の重み）の、号車つき報告から号車ごとの混雑を推定する
-export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [], shared = [] }) {
+export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [], shared = [], off = isWeekend(dow) }) {
   const mine = logs.filter((l) => l.route === route && !l.tags?.length);
   const weightOf = (l) => {
     const d = new Date(l.t);
-    if (isWeekend(d.getDay()) !== isWeekend(dow)) return 0;
+    if (isOffDay(d) !== off) return 0; // 休みの日（土日祝）と平日は分けて数える
     const ds = Math.abs(slotOf(l.t) - slot);
     if (ds > 1) return 0;
     const ageDays = (now - d) / 86400000;
@@ -334,13 +341,13 @@ export function pointsOf(logs) {
   for (const l of logs) pts += 10 + (l.car ? 5 : 0) + (l.level >= 4 ? 10 : 0) + (predHit(l) ? 5 : 0);
   // 平日の連続記録 5 日ごとに +50（土日はまたいでも途切れない）
   const days = [...new Set(logs.map((l) => l.t.slice(0, 10)))]
-    .filter((k) => !isWeekend(new Date(`${k}T12:00:00`).getDay())).sort();
+    .filter((k) => !isOffDay(new Date(`${k}T12:00:00`))).sort();
   let run = 0, prev = null;
   for (const k of days) {
     const d = new Date(`${k}T12:00:00`);
     if (prev) {
       const gap = new Date(prev);
-      do gap.setDate(gap.getDate() + 1); while (isWeekend(gap.getDay()));
+      do gap.setDate(gap.getDate() + 1); while (isOffDay(gap));
       run = dayKey(gap) === k ? run + 1 : 1;
     } else run = 1;
     if (run % 5 === 0) pts += 50;
@@ -399,5 +406,5 @@ export function reportPayload(device, route, log) {
   const dir = dirOf(route);
   if (!route.line || !dir || !log.car || log.tags?.length) return null;
   const d = new Date(log.t);
-  return { device, line: route.line, dir, daytype: isWeekend(d.getDay()) ? "we" : "wd", slot: slotOf(log.t), car: log.car, level: log.level, ...(log.mood ? { mood: log.mood } : {}) };
+  return { device, line: route.line, dir, daytype: isOffDay(d) ? "we" : "wd", slot: slotOf(log.t), car: log.car, level: log.level, ...(log.mood ? { mood: log.mood } : {}) };
 }

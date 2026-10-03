@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -455,4 +455,20 @@ test("auto prediction: the app's predicted level is checked against the record, 
   const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }], logs: [{ ...rec(2, { pred: 2 }) }, { ...rec(2, { pred: 9 }) }] }));
   assert.equal(d.logs[0].pred, 2);
   assert.equal(d.logs[1].pred, undefined);
+});
+
+test("holidays count as days off: shared reports, streaks and car estimates", () => {
+  // 2026-10-12（月）スポーツの日
+  assert.equal(isOffDay(new Date("2026-10-12T08:00:00")), true);
+  assert.equal(isOffDay(new Date("2026-10-13T08:00:00")), false);
+  assert.equal(isOffDay(new Date("2026-10-10T08:00:00")), true); // 土曜
+  const route = { id: "r1", name: "x", line: { c: "C", l: "L" }, dir: "D" };
+  assert.equal(reportPayload("dev", route, { t: "2026-10-12T08:00:00", level: 1, car: 2 }).daytype, "we");
+  // 金 → 祝日の月をはさんで → 火: 連続は途切れない
+  const days = ["2026-10-08", "2026-10-09", "2026-10-13"].map((d) => ({ route: "r1", t: `${d}T08:00:00`, level: 3 }));
+  assert.equal(streak(days, new Date("2026-10-13T20:00:00")).days, 3);
+  // 祝日の記録は、平日の号車予想に入らない
+  const holidayLog = { route: "r1", t: "2026-10-12T08:00:00", level: 1, car: 1 };
+  const est = carEstimates({ route: "r1", cars: 4, dow: 2, slot: 32, now: new Date("2026-10-13T08:00:00"), logs: [holidayLog], off: false });
+  assert.equal(est[0].n, 0);
 });
