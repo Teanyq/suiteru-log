@@ -324,7 +324,9 @@ function renderTrip() {
 function renderBingo() {
   const b = bingoOf(data.logs, new Date());
   $("bingo").replaceChildren(...b.cells.map((c) => el("div", { className: c.hit ? "hit" : "", textContent: c.hit && c.id !== "free" ? `✓ ${c.label}` : c.label })));
-  $("bingo-note").textContent = b.lines ? `🎯 ビンゴ ${b.lines}列！（1列ごとに +20pt）` : "記録するとマスが開きます。たて・よこ・ななめにそろうと +20pt。毎週月曜に新しいカード";
+  $("bingo-note").textContent = b.lines
+    ? `🎯 ${b.title}（${b.lines}列・+${b.lines * 20}pt）${b.lines < 8 ? "　まだそろえられる列があるかも" : ""}`
+    : "いつもの記録で開くマスと、ちょっと頑張ると開くマスがあります。たて・よこ・ななめにそろうと 1 列 +20pt。毎週月曜に新しいカード";
 }
 
 function renderRecap() {
@@ -486,7 +488,7 @@ function record(level, label) {
   const opened = bingoAfter.cells.filter((c, i) => c.hit && !bingoBefore.cells[i].hit).map((c) => `「${c.label}」`);
   const fun = [
     tripAfter ? (tripAfter.done.length > (tripBefore?.done.length ?? 0) ? `🎉 ${lineLabel(tripAfter.done.at(-1))} 制覇！次は${lineLabel(tripAfter.line)}へ` : `すごろく：${tripAfter.at}に到着`) : "",
-    bingoAfter.lines > bingoBefore.lines ? "🎯 ビンゴ！+20pt" : opened.length ? `ビンゴの${opened.join("")}が開いた` : "",
+    bingoAfter.lines > bingoBefore.lines ? `🎯 ${bingoAfter.title} +${(bingoAfter.lines - bingoBefore.lines) * 20}pt` : opened.length ? `ビンゴの${opened.join("")}が開いた` : "",
   ].filter(Boolean).join("　");
   const cheer = (fun ? `${fun}
 ` : "") + (mates ? `いま${car}号車には仲間が${mates}人。` : "") + (times >= 3 ? `${car}号車は今月${times}回目。${times >= 10 ? "もはや指定席" : "常連です"}。` : "") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length, hour: d.getHours(), month: d.getMonth() + 1 });

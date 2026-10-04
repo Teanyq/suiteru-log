@@ -461,7 +461,7 @@ test("auto prediction: the app's predicted level is checked against the record, 
   assert.equal(predHit(rec(3, { pred: 2 })), false);
   assert.equal(predHit(rec(3, {})), null);
   assert.equal(predHit(rec(1, { guess: "low" })), true); // 以前の手動予想も数える
-  assert.equal(pointsOf([rec(2, { pred: 2 })]), 20);
+  assert.equal(pointsOf([rec(2, { pred: 2 })]) - bingoBonus([rec(2, { pred: 2 })]), 20); // ビンゴのごほうびは別
   assert.deepEqual(guessStats([rec(2, { pred: 2 }), rec(3, { pred: 2 }), rec(3, {})]), { n: 2, hit: 1 });
   const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }], logs: [{ ...rec(2, { pred: 2 }) }, { ...rec(2, { pred: 9 }) }] }));
   assert.equal(d.logs[0].pred, 2);
@@ -586,4 +586,19 @@ test("bingoBonus: each completed bingo line of each week is +20pt, and pointsOf 
   const noBingo = logs.slice(0, 1); // 1 件だけではそろわない
   assert.equal(bingoBonus(noBingo), 0);
   assert.equal(pointsOf(logs) - bingoBonus(logs), logs.reduce((p, l) => p + 10 + 5 + 5, 0) + 50); // 記録・号車・的中・5 日連続
+});
+
+test("bingo is personal: never-done cells (early, weekend) don't appear, and each card has some stretch cells", () => {
+  const logs = [];
+  for (let i = 0; i < 40; i++) {
+    const d = new Date("2026-08-31T12:00:00"); d.setDate(d.getDate() + i);
+    if (isOffDay(d)) continue;
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    logs.push({ route: "r1", t: `${k}T08:10:00`, level: 3, car: 9 });
+  }
+  for (const day of ["2026-10-13", "2026-10-20", "2026-10-27", "2026-11-03"]) {
+    const ids = bingoOf(logs, new Date(`${day}T12:00:00`)).cells.map((c) => c.id);
+    assert.ok(!ids.includes("early") && !ids.includes("weekend"), `${day}: ${ids}`);
+    assert.ok(ids.filter((id) => BINGO_POOL.find((p) => p.id === id)?.kind === "stretch").length >= 3, `${day}: 頑張ればマスがある`);
+  }
 });

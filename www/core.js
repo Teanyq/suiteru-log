@@ -518,44 +518,86 @@ export function journeyOf(lines, start, n) {
 }
 
 // ── 今週のビンゴ（3×3、真ん中は FREE）。いつもの記録で自然に開くマスだけ。混み具合を指定するマスは作らない（データがゆがむ） ──
-const weekLogs = (logs, now) => {
-  const mon = new Date(now);
-  mon.setHours(0, 0, 0, 0);
+// その日を含む週の月曜（YYYY-MM-DD）
+const weekOf = (date) => {
+  const mon = new Date(date);
+  mon.setHours(12, 0, 0, 0);
   mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
-  const from = dayKey(mon), to = new Date(mon); to.setDate(to.getDate() + 7);
-  return { from, list: logs.filter((l) => l.t >= `${from}T00:00:00` && l.t < `${dayKey(to)}T00:00:00`) };
+  return dayKey(mon);
+};
+const weekLogs = (logs, now) => {
+  const from = weekOf(now);
+  return { from, list: logs.filter((l) => weekOf(new Date(l.t)) === from) };
 };
 const days = (list) => new Set(list.map((l) => l.t.slice(0, 10)));
+const minutes = (l) => { const d = new Date(l.t); return d.getHours() * 60 + d.getMinutes(); };
+// これまで（今週より前）の記録から、その人の「いつもの号車」と「いつもの朝の時刻」（中央値）
+function habitsOf(past) {
+  const cars = {};
+  for (const l of past) if (l.car) cars[l.car] = (cars[l.car] ?? 0) + 1;
+  const usualCar = Number(Object.entries(cars).sort((a, b) => b[1] - a[1])[0]?.[0]) || null;
+  const morning = past.filter((l) => minutes(l) >= 240 && minutes(l) < 720).map(minutes).sort((a, b) => a - b);
+  return { usualCar, usualMorning: morning.length >= 5 ? morning[morning.length >> 1] : null };
+}
+// easy: いつも通りで開くマス／stretch: ちょっと頑張れば届くマス。
+// need: その人のこれまでの記録で一度でも満たしたことがあるときだけ出す（生活の型で一生開かないマスを出さない）
 export const BINGO_POOL = [
-  { id: "mon", label: "月曜に記録", test: (w) => w.some((l) => new Date(l.t).getDay() === 1) },
-  { id: "fri", label: "金曜に記録", test: (w) => w.some((l) => new Date(l.t).getDay() === 5) },
-  { id: "early", label: "7時前に記録", test: (w) => w.some((l) => new Date(l.t).getHours() < 7) },
-  { id: "night", label: "18時以降に記録", test: (w) => w.some((l) => new Date(l.t).getHours() >= 18) },
-  { id: "car", label: "号車を選んで記録", test: (w) => w.some((l) => l.car) },
-  { id: "mood", label: "気分スタンプ", test: (w) => w.some((l) => l.mood) },
-  { id: "hit", label: "予想的中", test: (w) => w.some((l) => predHit(l)) },
-  { id: "both", label: "1日に2回記録", test: (w) => [...days(w)].some((d) => w.filter((l) => l.t.startsWith(d)).length >= 2) },
-  { id: "three", label: "3日記録", test: (w) => days(w).size >= 3 },
-  { id: "five", label: "5日記録", test: (w) => days(w).size >= 5 },
-  { id: "tag", label: "遅延か雨の印", test: (w) => w.some((l) => l.tags?.some((t) => t === "delay" || t === "rain")) },
-  { id: "weekend", label: "土日に記録", test: (w) => w.some((l) => [0, 6].includes(new Date(l.t).getDay())) },
-  { id: "twocars", label: "2つの号車に乗る", test: (w) => new Set(w.filter((l) => l.car).map((l) => l.car)).size >= 2 },
+  { id: "mon", kind: "easy", label: "月曜に記録", test: (w) => w.some((l) => new Date(l.t).getDay() === 1) },
+  { id: "fri", kind: "easy", label: "金曜に記録", test: (w) => w.some((l) => new Date(l.t).getDay() === 5) },
+  { id: "car", kind: "easy", label: "号車を選んで記録", test: (w) => w.some((l) => l.car) },
+  { id: "hit", kind: "easy", label: "予想的中", test: (w) => w.some((l) => predHit(l)) },
+  { id: "both", kind: "easy", label: "1日に2回記録", test: (w) => [...days(w)].some((d) => w.filter((l) => l.t.startsWith(d)).length >= 2) },
+  { id: "three", kind: "easy", label: "3日記録", test: (w) => days(w).size >= 3 },
+  { id: "five", kind: "stretch", label: "5日記録", test: (w) => days(w).size >= 5 },
+  { id: "mood", kind: "stretch", label: "気分スタンプ", test: (w) => w.some((l) => l.mood) },
+  { id: "twocars", kind: "stretch", label: "2つの号車に乗る", test: (w) => new Set(w.filter((l) => l.car).map((l) => l.car)).size >= 2 },
+  { id: "newcar", kind: "stretch", label: "いつもと違う号車", test: (w, h) => h.usualCar && w.some((l) => l.car && l.car !== h.usualCar), when: (h) => h.usualCar },
+  { id: "earlier", kind: "stretch", label: "いつもより15分早く", test: (w, h) => w.some((l) => minutes(l) >= 240 && minutes(l) <= h.usualMorning - 15), when: (h) => h.usualMorning },
+  { id: "early", kind: "stretch", need: true, label: "7時前に記録", test: (w) => w.some((l) => new Date(l.t).getHours() < 7) },
+  { id: "night", kind: "stretch", need: true, label: "18時以降に記録", test: (w) => w.some((l) => new Date(l.t).getHours() >= 18) },
+  { id: "weekend", kind: "stretch", need: true, label: "土日に記録", test: (w) => w.some((l) => [0, 6].includes(new Date(l.t).getDay())) },
+  { id: "tag", kind: "stretch", need: true, label: "遅延か雨の印", test: (w) => w.some((l) => l.tags?.some((t) => t === "delay" || t === "rain")) },
 ];
 const BINGO_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+export const BINGO_TITLES = ["", "ビンゴ！", "ダブルビンゴ！", "トリプルビンゴ！", "4列ビンゴ！", "5列ビンゴ！", "6列ビンゴ！", "7列ビンゴ！", "パーフェクト！"];
 export function bingoOf(logs, now) {
   const { from, list } = weekLogs(logs, now);
-  // 週ごとに決まった並び（週の月曜の日付から作る乱数で 8 マスを選ぶ）
-  let seed = [...from].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+  const past = logs.filter((l) => l.t < `${from}T00:00:00`);
+  const h = habitsOf(past);
+  // 週ごとに決まった並び（週の月曜の日付から作る乱数）
+  let seed = [...from].reduce((x, ch) => (x * 31 + ch.charCodeAt(0)) >>> 0, 7);
   const rand = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 2 ** 32;
-  const pool = [...BINGO_POOL];
-  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  const picked = pool.slice(0, 8).map((p) => ({ id: p.id, label: p.label, hit: p.test(list) }));
+  const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  // need のマスは「やったことはあるが、毎週ではない」（過去の週の半分以下）ときだけ頑張ればマスにする
+  const byWeek = new Map();
+  for (const l of past) { const w = weekOf(new Date(l.t)); byWeek.set(w, [...(byWeek.get(w) ?? []), l]); }
+  const pastWeeks = [...byWeek.values()];
+  const rate = (p) => (pastWeeks.length ? pastWeeks.filter((w) => p.test(w, h)).length / pastWeeks.length : 0);
+  const eligible = (p) => (!p.when || p.when(h)) && (!p.need || (rate(p) > 0 && rate(p) <= 0.5));
+  const easy = shuffle(BINGO_POOL.filter((p) => p.kind === "easy"));
+  const stretch = shuffle(BINGO_POOL.filter((p) => p.kind === "stretch" && eligible(p)));
+  // いつも通りで開くマス 3 つ＋ちょっと頑張れば届くマス 5 つ（足りなければいつものマスで埋める）。
+  // いつも通りの人で半分くらいの週にそろい、ひと工夫した週はたくさんそろう難しさ
+  const chosen = shuffle([...easy.slice(0, 3), ...stretch.slice(0, 5), ...easy.slice(3)].slice(0, 8));
+  const picked = chosen.map((p) => ({ id: p.id, label: p.label, hit: !!p.test(list, h) }));
   const cells = [...picked.slice(0, 4), { id: "free", label: "FREE", hit: true }, ...picked.slice(4)];
-  return { cells, lines: BINGO_LINES.filter((ln) => ln.every((i) => cells[i].hit)).length, week: from };
+  const lines = BINGO_LINES.filter((ln) => ln.every((i) => cells[i].hit)).length;
+  return { cells, lines, title: BINGO_TITLES[lines], week: from };
 }
 
 // ビンゴのごほうび: 各週のそろった列 × 20pt（記録から毎回計算し直す）
+// 記録のたびに何度も呼ばれるので、同じ記録の並びなら前回の答えを使う（件数・最後の時刻・気分と号車の数で見分ける）
+const bonusCache = new Map();
 export function bingoBonus(logs) {
+  const key = `${logs.length}|${logs.at(-1)?.t}|${logs.filter((l) => l.mood).length}|${logs.filter((l) => l.car).length}|${logs.filter((l) => l.tags).length}`;
+  if (bonusCache.has(key)) return bonusCache.get(key);
+  if (bonusCache.size > 20) bonusCache.clear();
+  const v = bingoBonusRaw(logs);
+  bonusCache.set(key, v);
+  return v;
+}
+// ponytail: 週ごとに bingoOf を作り直すので 1 年分（約 500 件）で 60ms ほど。重くなったら、過去の週の結果は変わらないので週ごとに覚えておく
+function bingoBonusRaw(logs) {
   const weeks = new Map();
   for (const l of logs) {
     const d = new Date(l.t);
