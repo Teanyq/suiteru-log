@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, MONTH_GOAL, badgesOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -139,7 +139,9 @@ function renderRecommend() {
       el("span", { className: "time", textContent: `${s.label}台` }),
       el("span", { className: "meta" },
         `平均 ${s.avg.toFixed(1)} ・ ${s.n}回`,
+        // 1 回だけの枠は差を言い切らない（たまたまの 1 回で「いつもより 3.0 空き」と出さない）
         ...(s.slot === usual.slot ? [el("br"), el("span", { className: "tag", textContent: "いつもの" })]
+          : s.n < 2 ? [el("br"), el("span", { className: "fc-meta", textContent: "まだ1回（参考）" })]
           : usual.avg - s.avg >= 0.5 ? [el("br"), el("span", { className: "better", textContent: `いつもより ${(usual.avg - s.avg).toFixed(1)} 空き` })]
           : [])))));
   const note = fallback
@@ -297,9 +299,9 @@ function renderRecap() {
   $("recap-sec").hidden = !r.rides;
   if (!r.rides) return;
   $("h-recap").textContent = `${r.month}月のふりかえり`;
-  const badges = badgesOf(data.logs);
+  const badges = badgesOf(data.logs), goal = monthGoal(localIso(new Date()).slice(0, 7));
   const items = [
-    r.rides >= MONTH_GOAL ? `今月の目標 ${MONTH_GOAL} 回 達成！バッジ ${badges.at(-1).emoji} をゲット` : `今月の目標まで あと ${MONTH_GOAL - r.rides} 回（${r.rides}/${MONTH_GOAL}）。達成で季節のバッジ`,
+    r.rides >= goal ? `今月の目標 ${goal} 回 達成！バッジ ${badges.at(-1).emoji} をゲット` : `今月の目標（平日の数）まで あと ${goal - r.rides} 回（${r.rides}/${goal}）。達成で季節のバッジ`,
     badges.length ? `集めたバッジ: ${badges.map((b) => `${b.emoji}${Number(b.ym.slice(5))}月`).join(" ")}` : "",
     `記録 ${r.rides} 回${r.empty ? `（空いてた ${r.empty} 回）` : ""}`,
     r.crowded ? `ぎゅうぎゅうに耐えた ${r.crowded} 回。おつかれさま` : "",
@@ -365,9 +367,9 @@ function renderCars() {
   const dir = dirOf(route);
   $("car-reco").replaceChildren(
     el("p", { className: "reco-when", textContent: `${d.getHours()}時ごろ${dir ? `・${dir}方面` : ""}は` }),
-    // 2 両以下は号車の差がほとんどないので、言い切らない（空いてる時間帯は下の「今日のおすすめ」へ）
+    // 2 両以下は号車の差がほとんどないので、言い切らない（空いてる時間帯は下の「空いてる時間帯」へ）
     (route.cars ?? 10) <= 2
-      ? el("p", { className: "reco-head" }, el("strong", { textContent: `${route.cars}両編成` }), " なので号車の差は小さめ。空いてる時間帯は下の「今日のおすすめ」へ")
+      ? el("p", { className: "reco-head" }, el("strong", { textContent: `${route.cars}両編成` }), " なので号車の差は小さめ。空いてる時間帯は下の「空いてる時間帯」へ")
       : el("p", { className: "reco-head" }, el("strong", { textContent: bests.map((c) => `${c.car}号車`).join("・") }), " が空いてそう"),
     el("div", { className: "train mini", role: "img", ariaLabel: est.map((c) => `${c.car}号車 ${LEVELS[Math.round(c.value) - 1][1]}`).join("、") },
       // 混んでいる号車は斜線の模様も付ける（色が見分けにくい人にも伝わるように）

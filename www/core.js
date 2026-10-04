@@ -385,13 +385,19 @@ export function guessStats(logs) {
   return { n: g.length, hit: g.filter(predHit).length };
 }
 
-// 今月の目標（毎月リセット）。達成した月はその季節のバッジ。称号のように打ち止めにならない
-export const MONTH_GOAL = 30;
+// 今月の目標（毎月リセット）＝ その月の平日（土日祝を除く）の数。片道だけ記録する人も毎日続ければ届き、往復なら余裕。
+// 達成した月はその季節のバッジ。称号のように打ち止めにならない
+export function monthGoal(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  let n = 0;
+  for (const d = new Date(y, m - 1, 1, 12); d.getMonth() === m - 1; d.setDate(d.getDate() + 1)) if (!isOffDay(d)) n++;
+  return n;
+}
 const SEASON = ["🎍", "⛄", "🌸", "🌷", "🎏", "☔", "🎐", "🌻", "🎑", "🍁", "🍂", "🎄"];
 export function badgesOf(logs) {
   const count = {};
   for (const l of logs) { const ym = l.t.slice(0, 7); count[ym] = (count[ym] ?? 0) + 1; }
-  return Object.keys(count).filter((ym) => count[ym] >= MONTH_GOAL).sort().map((ym) => ({ ym, emoji: SEASON[Number(ym.slice(5)) - 1] }));
+  return Object.keys(count).filter((ym) => count[ym] >= monthGoal(ym)).sort().map((ym) => ({ ym, emoji: SEASON[Number(ym.slice(5)) - 1] }));
 }
 
 // 今月のふりかえり（端末内の記録だけで出す）

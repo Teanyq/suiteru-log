@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, MONTH_GOAL, badgesOf, HOLIDAYS_UNTIL } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -489,9 +489,11 @@ test("parseBackup carries the share ID over to the new phone (and ignores a bad 
   assert.equal("device" in parseBackup(JSON.stringify(base)), false);
 });
 
-test("monthly goal: every month with MONTH_GOAL rides earns that season's badge (never runs out)", () => {
+test("monthly goal = weekdays in that month (one ride a day is enough); reaching it earns the season's badge", () => {
+  assert.equal(monthGoal("2026-10"), 21); // 平日 22 日 − スポーツの日
+  assert.equal(monthGoal("2026-11"), 19);
   const rides = (ym, n) => Array.from({ length: n }, (_, i) => ({ route: "r1", t: `${ym}-${String(1 + (i % 28)).padStart(2, "0")}T08:00:00`, level: 3 }));
-  const logs = [...rides("2026-09", MONTH_GOAL), ...rides("2026-10", MONTH_GOAL - 1), ...rides("2026-12", MONTH_GOAL + 5)];
+  const logs = [...rides("2026-09", monthGoal("2026-09")), ...rides("2026-10", monthGoal("2026-10") - 1), ...rides("2026-12", monthGoal("2026-12") + 5)];
   assert.deepEqual(badgesOf(logs), [{ ym: "2026-09", emoji: "🎑" }, { ym: "2026-12", emoji: "🎄" }]);
 });
 
