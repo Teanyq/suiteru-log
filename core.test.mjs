@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL, companyGroups } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -520,4 +520,18 @@ test("cheerOf has enough variety not to repeat for weeks, and fits the hour and 
   assert.ok(new Set(Array.from({ length: 8 }, (_, n) => cheerOf({ level: 5, streakDays: 1, dow: 3, n }))).size >= 3, "ぎゅうぎゅうの日も毎回同じではない");
   assert.ok(Array.from({ length: 12 }, (_, n) => plain(n, { hour: 6 })).some((t) => /早/.test(t)), "早朝の言葉");
   assert.ok(Array.from({ length: 12 }, (_, n) => plain(n, { month: 6 })).some((t) => /梅雨|雨/.test(t)), "梅雨の言葉");
+});
+
+test("companyGroups splits a long company list under headings, keeping the companiesIn order", () => {
+  const L = [
+    { c: "東日本旅客鉄道", l: "山手線", k: 2, r: ["関東"], s: [] }, { c: "東京都", l: "大江戸線", k: 3, r: ["関東"], s: [] },
+    { c: "東京地下鉄", l: "銀座線", k: 4, r: ["関東"], s: [] }, { c: "東急電鉄", l: "東横線", k: 4, r: ["関東"], s: [] }, { c: "東急電鉄", l: "田園都市線", k: 4, r: ["関東"], s: [] },
+    { c: "小田急電鉄", l: "小田原線", k: 4, r: ["関東"], s: [] }, { c: "ゆりかもめ", l: "東京臨海新交通臨海線", k: 5, r: ["関東"], s: [] },
+  ];
+  assert.deepEqual(companyGroups(L, "関東"), [
+    { label: "JR・新幹線", companies: ["東日本旅客鉄道"] },
+    { label: "地下鉄・公営", companies: ["東京都", "東京地下鉄"] }, // メトロは民営だが地下鉄の見出しに
+    { label: "私鉄", companies: ["東急電鉄", "小田急電鉄"] },
+    { label: "その他（第三セクターなど）", companies: ["ゆりかもめ"] },
+  ]);
 });

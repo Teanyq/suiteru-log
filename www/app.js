@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companyGroups, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -497,8 +497,10 @@ function drawStep() {
   $("picker-title").textContent = step.title;
   $("picker-back").hidden = pickerStack.length < 2;
   // items（ボタンの一覧）か content（電車の絵など自由な中身）のどちらか
-  $("picker-list").replaceChildren(...(step.content ? [step.content()] : step.items.map((it) =>
-    el("button", { type: "button", onclick: it.onPick }, el("span", { textContent: it.label }), ...(it.sub ? [el("small", { textContent: it.sub })] : [])))));
+  // items の { header } は押せない見出し（会社の区分など）
+  $("picker-list").replaceChildren(...(step.content ? [step.content()] : step.items.map((it) => it.header
+    ? el("p", { className: "pick-head", textContent: it.header })
+    : el("button", { type: "button", onclick: it.onPick }, el("span", { textContent: it.label }), ...(it.sub ? [el("small", { textContent: it.sub })] : [])))));
   $("picker-foot").replaceChildren(...(step.foot ? [step.foot] : []));
   $("picker-list").scrollTop = 0;
 }
@@ -524,15 +526,18 @@ async function pickRoute(title, onDone) {
   $("picker").showModal();
   let lines;
   try { lines = await loadLines(); } catch { return showStep({ title, items: [], foot: manual }); }
-  showStep({ title, foot: manual, items: REGIONS.map((region) => ({ label: region, onPick: () =>
-    showStep({ title: region, items: companiesIn(lines, region).map((company) => ({ label: companyLabel(company), onPick: () =>
-      showStep({ title: companyLabel(company), items: linesOf(lines, region, company).map((line) => ({ label: lineLabel(line), sub: `${line.s.length}駅`, onPick: () =>
-        showStep({ title: `${lineLabel(line)}（どちら方面？）`, items: directionsOf(line).map((name, i) => ({ label: name, onPick: () =>
-          // 両数で「端の号車」が変わるので、最後に 1 タップで聞く
-          showStep(carsStep((cars) => {
-            onDone(name, { c: line.c, l: line.l }, line.s.length < 2 ? null : i === 0 ? line.s.at(-1) : line.s[0], cars);
-            closePicker();
-          })) })) }) })) }) })) }) })) });
+  // エリア → 会社（区分の見出しつき）→ 路線 → 方面 → 両数
+  const dirStep = (line) => showStep({ title: `${lineLabel(line)}（どちら方面？）`, items: directionsOf(line).map((name, i) => ({ label: name, onPick: () =>
+    // 両数で「端の号車」が変わるので、最後に 1 タップで聞く
+    showStep(carsStep((cars) => {
+      onDone(name, { c: line.c, l: line.l }, line.s.length < 2 ? null : i === 0 ? line.s.at(-1) : line.s[0], cars);
+      closePicker();
+    })) })) });
+  const lineStep = (region, company) => showStep({ title: companyLabel(company), items: linesOf(lines, region, company).map((line) =>
+    ({ label: lineLabel(line), sub: `${line.s.length}駅`, onPick: () => dirStep(line) })) });
+  const companyStep = (region) => showStep({ title: region, items: companyGroups(lines, region).flatMap((g) =>
+    [{ header: g.label }, ...g.companies.map((company) => ({ label: companyLabel(company), onPick: () => lineStep(region, company) }))]) });
+  showStep({ title, foot: manual, items: REGIONS.map((region) => ({ label: region, onPick: () => companyStep(region) })) });
 }
 const CAR_COUNTS = [1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 15];
 const carsStep = (done) => ({ title: "何両編成？", items: [

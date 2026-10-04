@@ -282,6 +282,17 @@ export function companiesIn(lines, region) {
   return [...by].sort((a, b) => a[1].k - b[1].k || b[1].n - a[1].n || a[0].localeCompare(b[0], "ja")).map(([c]) => c);
 }
 
+// 会社の一覧を区分ごとの見出しに分ける（関東は 51 社あるので、見出しがないと探しにくい）
+const GROUPS = [[[1, 2], "JR・新幹線"], [[3], "地下鉄・公営"], [[4], "私鉄"], [[5], "その他（第三セクターなど）"]];
+export function companyGroups(lines, region) {
+  const kind = new Map();
+  for (const l of lines) if (l.r.includes(region)) kind.set(l.c, Math.min(kind.get(l.c) ?? 9, l.k));
+  // 東京メトロ・Osaka Metro は統計上は民営だが、利用者は「地下鉄」で探すので地下鉄の見出しに入れる
+  for (const c of ["東京地下鉄", "大阪市高速電気軌道"]) if (kind.has(c)) kind.set(c, 3);
+  return GROUPS.map(([ks, label]) => ({ label, companies: companiesIn(lines, region).filter((c) => ks.includes(kind.get(c))) }))
+    .filter((g) => g.companies.length);
+}
+
 export const linesOf = (lines, region, company) => lines.filter((l) => l.c === company && l.r.includes(region));
 
 // 両端の駅で方面を作る（上り/下りより分かりやすい）
