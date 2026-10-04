@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companyGroups, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf, journeyOf, bingoOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companyGroups, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf, journeyOf, bingoOf, nearestStation, stampsOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -296,6 +296,43 @@ async function loadRank() {
   } catch {}
 }
 
+// ── 位置情報（オンにした人だけ）: 近くの駅を端末の中で探す。位置そのものは保存も送信もしない ──
+const getPosition = () => new Promise((resolve) => {
+  if (!navigator.geolocation) return resolve(null);
+  navigator.geolocation.getCurrentPosition((p) => resolve([p.coords.latitude, p.coords.longitude]), () => resolve(null),
+    // 駅がわかれば十分なので、速い・電池にやさしいネットワーク位置で（GPS 待ちは地下や車内で時間切れになりやすい）
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 120000 });
+});
+let here = null; // { station, c, l, at }（今いる駅。アプリを開いた時に調べる）
+async function findStation(prefer) {
+  if (!data.useLocation) return null;
+  const [pos] = await Promise.all([getPosition(), loadLines().catch(() => null)]);
+  return pos && LINES ? nearestStation(LINES, pos[0], pos[1], prefer) : null;
+}
+// アプリを開いた時: 今いる駅を調べ、その駅を通る登録済みの路線に切り替える（今の路線が通っていなければ）
+async function locateOnOpen() {
+  const st = await findStation(currentRoute()?.line);
+  if (!st) return;
+  here = { ...st, at: Date.now() };
+  const passes = (r) => r.line && LINES.some((l) => l.c === r.line.c && l.l === r.line.l && l.s.includes(st.station));
+  const cur = currentRoute();
+  if (cur && !passes(cur)) {
+    const other = data.routes.find(passes);
+    if (other) { data.current = other.id; save(); toast(`${st.station}駅の近くなので「${other.name}」にしました`); }
+  }
+  render();
+}
+$("use-loc").checked = !!data.useLocation;
+$("use-loc").addEventListener("change", async (e) => {
+  data.useLocation = e.target.checked;
+  save();
+  if (!data.useLocation) { here = null; render(); return toast("位置情報を使わない設定にしました"); }
+  const pos = await getPosition(); // ここで端末の許可を求める
+  if (!pos) { data.useLocation = false; e.target.checked = false; save(); return toast("位置情報が使えませんでした（端末の設定で許可してください）"); }
+  toast("位置情報をオンにしました。記録すると、その駅のスタンプがもらえます");
+  locateOnOpen();
+});
+
 // 通勤すごろく: 記録 1 回で本物の駅を 1 つ進む（最初の路線は登録した路線・方面）
 const tripStart = () => data.routes.find((r) => r.line && dirOf(r));
 const tripNow = (n = data.logs.length) => {
@@ -318,8 +355,17 @@ function renderTrip() {
     el("p", { className: "trip-at" }, "いま ", el("strong", { textContent: j.at }), `　次は ${j.next}`),
     el("div", { className: "trip-bar", role: "img", ariaLabel: `${j.terminal}まであと${j.toEnd}駅` }, el("i", { style: `width:${Math.round(100 * (j.steps - j.toEnd) / j.steps)}%` })),
     el("p", { className: "note", textContent: `${j.terminal}まであと${j.toEnd}駅で路線制覇。1回記録するごとに1駅進みます。これまで${j.passed}駅・制覇${j.done.length}路線${j.done.length ? `（${j.done.slice(-3).map(lineLabel).join("・")}）` : ""}` }),
+    stampLine(),
   );
 }
+// 駅スタンプ: 位置情報をオンにした人が、記録した駅を集める（初めての駅は +10pt）
+function stampLine() {
+  const st = stampsOf(data.logs);
+  if (!data.useLocation && !st.length)
+    return el("button", { type: "button", className: "link-btn", textContent: "📍 駅スタンプを集める（位置情報をオン）", onclick: () => { $("use-loc").checked = true; $("use-loc").dispatchEvent(new Event("change")); } });
+  return el("p", { className: "note", textContent: `📍 駅スタンプ ${st.length}個${st.length ? `（最近: ${st.slice(-3).reverse().join("・")}）` : "。記録した駅のスタンプが集まります（初めての駅は +10pt）"}` });
+}
+
 // 今週のビンゴ: いつもの記録で自然にマスが開く。毎週月曜に新しいカード
 function renderBingo() {
   const b = bingoOf(data.logs, new Date());
@@ -402,7 +448,7 @@ function renderCars() {
     : `${parts.join("と")}から出しています`;
   const dir = dirOf(route);
   $("car-reco").replaceChildren(
-    el("p", { className: "reco-when", textContent: `${d.getHours()}時ごろ${dir ? `・${dir}方面` : ""}は` }),
+    el("p", { className: "reco-when", textContent: `${here && Date.now() - here.at < 15 * 60000 ? `📍${here.station}駅の近く・` : ""}${d.getHours()}時ごろ${dir ? `・${dir}方面` : ""}は` }),
     // 2 両以下は号車の差がほとんどないので、言い切らない（空いてる時間帯は下の「空いてる時間帯」へ）
     (route.cars ?? 10) <= 2
       ? el("p", { className: "reco-head" }, el("strong", { textContent: `${route.cars}両編成` }), " なので号車の差は小さめ。空いてる時間帯は下の「空いてる時間帯」へ")
@@ -503,6 +549,16 @@ function record(level, label) {
     } })));
   toast(`${car ? `${car}号車 ` : ""}「${label}」を記録 +${gained}pt${note}
 ${check}${cheer}`, () => removeLog(log), moods);
+  // 位置情報がオンなら、記録した駅を調べてスタンプ（数秒かかるので、わかったら記録に足して知らせる）
+  if (data.useLocation) findStation(route?.line).then((st) => {
+    if (!st || !data.logs.includes(log)) return;
+    const first = !stampsOf(data.logs).includes(st.station);
+    log.station = st.station;
+    here = { ...st, at: Date.now() };
+    save();
+    render();
+    if (first) $("toast").append(el("span", { className: "stamp-msg", textContent: `📍 ${st.station}駅のスタンプをゲット！+10pt（${stampsOf(data.logs).length}個目）` }));
+  });
 }
 
 const activeTags = new Set();
@@ -813,12 +869,13 @@ function autoRoute() {
 }
 
 // アプリに戻ってきた時に路線と時刻を今に合わせる（朝開いたまま夕方に記録、を防ぐ）
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { autoRoute(); setTime(); render(); flushOutbox(); } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { autoRoute(); setTime(); render(); flushOutbox(); locateOnOpen(); } });
 window.addEventListener("online", flushOutbox);
 
 autoRoute();
 setTime();
 render();
+locateOnOpen();
 
 // 初めて開いた人（路線が初期の「いつもの路線」のまま・記録なし）には、最初に路線選びを出す
 if (data.routes.length === 1 && !data.routes[0].line && !data.logs.length && !recParam(location.search)) $("rename-route").click();

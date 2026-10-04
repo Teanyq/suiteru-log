@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL, companyGroups, journeyOf, bingoOf, BINGO_POOL, bingoBonus } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL, companyGroups, journeyOf, bingoOf, BINGO_POOL, bingoBonus, nearestStation, stampsOf } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -601,4 +601,29 @@ test("bingo is personal: never-done cells (early, weekend) don't appear, and eac
     assert.ok(!ids.includes("early") && !ids.includes("weekend"), `${day}: ${ids}`);
     assert.ok(ids.filter((id) => BINGO_POOL.find((p) => p.id === id)?.kind === "stretch").length >= 3, `${day}: 頑張ればマスがある`);
   }
+});
+
+test("nearestStation: finds the closest station, prefers the user's line, and gives up when far from any station", () => {
+  const L = [
+    { c: "東急電鉄", l: "田園都市線", k: 4, r: ["関東"], s: ["池尻大橋", "渋谷"], p: [[35.6507, 139.6846], [35.6595, 139.7]] },
+    { c: "東日本旅客鉄道", l: "山手線", k: 2, r: ["関東"], s: ["渋谷", "原宿"], p: [[35.6580, 139.7016], [35.6702, 139.7027]] },
+  ];
+  const near = nearestStation(L, 35.6590, 139.7005);
+  assert.equal(near.station, "渋谷");
+  assert.ok(near.meters < 200);
+  // 同じくらい近ければ、自分の路線（田園都市線）を選ぶ
+  assert.equal(nearestStation(L, 35.6585, 139.7010, { c: "東急電鉄", l: "田園都市線" }).l, "田園都市線");
+  assert.equal(nearestStation(L, 35.70, 139.80), null); // 駅から遠い（数 km）
+});
+
+test("stamps: each station counts once, and a new station is +10pt", () => {
+  const rec = (t, station) => ({ route: "r1", t, level: 3, ...(station ? { station } : {}) });
+  const logs = [rec("2026-10-05T08:00:00", "渋谷"), rec("2026-10-05T18:00:00", "渋谷"), rec("2026-10-06T08:00:00", "三軒茶屋"), rec("2026-10-06T18:00:00")];
+  assert.deepEqual(stampsOf(logs), ["渋谷", "三軒茶屋"]);
+  const without = logs.map(({ station, ...l }) => l);
+  assert.equal((pointsOf(logs) - bingoBonus(logs)) - (pointsOf(without) - bingoBonus(without)), 20);
+  // バックアップの読み込みでも駅は残る（20 文字まで）
+  const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }], logs: [rec("2026-10-05T08:00:00", "渋谷"), rec("2026-10-05T09:00:00", "x".repeat(30))] }));
+  assert.equal(d.logs[0].station, "渋谷");
+  assert.equal(d.logs[1].station, undefined);
 });

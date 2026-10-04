@@ -24,7 +24,7 @@ for (const { properties: p, geometry: g } of features) {
 // 東西・南北に並べるだけだと、大江戸線のように曲がった・輪になった路線で隣り合わない駅が並ぶため
 function ordered(stations) {
   const pts = [...stations];
-  if (pts.length < 3) return pts.map(([name]) => name);
+  if (pts.length < 3) return pts;
   const d = (a, b) => Math.hypot(a[1][0] - b[1][0], (a[1][1] - b[1][1]) * Math.cos((a[1][0] * Math.PI) / 180));
   const length = (path) => path.reduce((sum, p, i) => sum + (i ? d(path[i - 1], p) : 0), 0);
   const twoOpt = (path) => {
@@ -55,7 +55,7 @@ function ordered(stations) {
   // 向きをそろえる（西→東 or 南→北）。方面の名前（終点）は両端なので向きには影響しない
   const axis = Math.abs(best.at(-1)[1][1] - best[0][1][1]) >= Math.abs(best.at(-1)[1][0] - best[0][1][0]) ? 1 : 0;
   if (best[0][1][axis] > best.at(-1)[1][axis]) best.reverse();
-  return best.map(([name]) => name);
+  return best;
 }
 
 const out = [...lines.values()]
@@ -64,7 +64,11 @@ const out = [...lines.values()]
     l: l.line,
     k: Number(l.kind), // 1 新幹線 2 JR在来線 3 公営 4 民営 5 第三セクター
     r: [...new Set([...l.stations.values()].map(([lat, lon]) => regionOf(lat, lon)))],
-    s: ordered(l.stations),
+    ...(() => {
+      // s: 駅名（沿線順）、p: その駅の緯度・経度（小数 4 桁 ≒ 10m。位置情報から近くの駅を探すため）
+      const o = ordered(l.stations);
+      return { s: o.map(([name]) => name), p: o.map(([, [lat, lon]]) => [Math.round(lat * 1e4) / 1e4, Math.round(lon * 1e4) / 1e4]) };
+    })(),
   }))
   .sort((a, b) => a.k - b.k || a.c.localeCompare(b.c, "ja") || a.l.localeCompare(b.l, "ja"));
 

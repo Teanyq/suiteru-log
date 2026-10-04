@@ -93,13 +93,14 @@ export function parseBackup(text) {
   const ids = new Set(routes.map((r) => r.id));
   const logs = (Array.isArray(raw.logs) ? raw.logs : [])
     .filter((l) => ids.has(l?.route) && T_RE.test(l?.t) && Number.isInteger(l?.level) && l.level >= 1 && l.level <= 5)
-    .map(({ route, t, level, tags, car, guess, pred, mood }) => {
+    .map(({ route, t, level, tags, car, guess, pred, mood, station }) => {
       const ok = Array.isArray(tags) ? [...new Set(tags)].filter((x) => Object.hasOwn(TAGS, x)) : [];
       const log = ok.length ? { route, t, level, tags: ok } : { route, t, level };
       if (Number.isInteger(car) && car >= 1 && car <= 20) log.car = car; // v2: 号車つきの報告
       if (guess === "low" || guess === "high") log.guess = guess; // 以前の手動の号車予想
       if (Number.isInteger(pred) && pred >= 1 && pred <= 5) log.pred = pred; // アプリの予想（自動の答え合わせ）
       if (Object.hasOwn(MOODS, mood)) log.mood = mood; // 気分スタンプ
+      if (typeof station === "string" && station && station.length <= 20) log.station = station; // 駅スタンプ（位置情報から）
       return log;
     });
   const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -375,6 +376,7 @@ export function pointsOf(logs) {
   let pts = 0;
   // 号車つき +5、ぎゅうぎゅう側（4〜5）は「戦士ボーナス」+10（つらい日ほど報われる）
   for (const l of logs) pts += 10 + (l.car ? 5 : 0) + (l.level >= 4 ? 10 : 0) + (predHit(l) ? 5 : 0);
+  pts += 10 * stampsOf(logs).length; // 初めての駅のスタンプ
   // 平日の連続記録 5 日ごとに +50（土日はまたいでも途切れない）
   const days = [...new Set(logs.map((l) => l.t.slice(0, 10)))]
     .filter((k) => !isOffDay(new Date(`${k}T12:00:00`))).sort();
@@ -605,4 +607,31 @@ function bingoBonusRaw(logs) {
     weeks.set(dayKey(d), d);
   }
   return [...weeks.values()].reduce((p, d) => p + 20 * bingoOf(logs, d).lines, 0);
+}
+
+// ── 駅スタンプ（位置情報はオンにした人だけ。記録したときに近くの駅を端末の中で探し、駅名だけを記録に残す。サーバーには送らない）──
+const metersBetween = (a, b) => {
+  const r = Math.PI / 180, x = (b[1] - a[1]) * r * Math.cos(((a[0] + b[0]) / 2) * r), y = (b[0] - a[0]) * r;
+  return Math.hypot(x, y) * 6371000;
+};
+// いちばん近い駅（maxMeters 以内）。自分の路線（prefer）の駅が近ければそちらを選ぶ（乗換駅で路線を取り違えない）
+export function nearestStation(lines, lat, lon, prefer = null, maxMeters = 600) {
+  let best = null, mine = null;
+  for (const l of lines) {
+    if (!l.p) continue;
+    for (let i = 0; i < l.s.length; i++) {
+      const m = metersBetween([lat, lon], l.p[i]);
+      const hit = { c: l.c, l: l.l, station: l.s[i], meters: Math.round(m) };
+      if (!best || m < best.meters) best = hit;
+      if (prefer && l.c === prefer.c && l.l === prefer.l && (!mine || m < mine.meters)) mine = hit;
+    }
+  }
+  if (mine && mine.meters <= maxMeters && (!best || mine.meters - best.meters < 300)) return mine;
+  return best && best.meters <= maxMeters ? best : null;
+}
+// 集めた駅スタンプ（初めて記録した順）
+export function stampsOf(logs) {
+  const seen = new Set();
+  for (const l of logs) if (l.station) seen.add(l.station);
+  return [...seen];
 }
