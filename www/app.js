@@ -318,8 +318,9 @@ function renderRecap() {
 function renderShare() {
   $("share").checked = !!data.share;
   $("device-id").textContent = data.device.slice(0, 8);
-  // まだ聞いていない時だけ、1 回記録してから出す（何のアプリか分かる前にお願いしない）
-  $("share-ask").hidden = data.share !== undefined || !data.logs.length;
+  // まだ聞いていない時だけ、1 回記録してから出す（何のアプリか分かる前にお願いしない）。
+  // 一度断った人には、使い込んだ記録 20 回目以降に 1 度だけもう一度（2 回目も断れば以後出さない）
+  $("share-ask").hidden = !((data.share === undefined && data.logs.length) || (data.share === false && !data.reasked && data.logs.length >= 20));
 }
 function setShare(on) {
   data.share = on;
@@ -330,8 +331,8 @@ function setShare(on) {
   if (on) flushOutbox();
 }
 $("share-yes").addEventListener("click", () => { setShare(true); toast("共有をオンにしました。ありがとうございます"); });
-$("share-no").addEventListener("click", () => { setShare(false); toast("共有はオフです（データ欄からいつでも変えられます）"); });
-$("share").addEventListener("change", (e) => setShare(e.target.checked));
+$("share-no").addEventListener("click", () => { if (data.share === false) data.reasked = true; setShare(false); toast("共有はオフです（データ欄からいつでも変えられます）"); });
+$("share").addEventListener("change", (e) => { if (!e.target.checked) data.reasked = true; setShare(e.target.checked); }); // 自分で切った人には再提案しない
 
 // ── v2: 空いてる号車 ──
 const currentRoute = () => data.routes.find((r) => r.id === data.current);
