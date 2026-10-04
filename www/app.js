@@ -233,7 +233,9 @@ async function flushOutbox() {
   for (const p of pending) {
     try {
       const res = await fetch(`${API}/v1/reports`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
-      if (res.status >= 500) data.outbox.push(p); // サーバー側の一時的な不調は後で送り直す（400/429 は捨てる）
+      // サーバー側の一時的な不調と、回線全体の混雑（同じ IP からの上限: too_many）は後で送り直す。
+      // 不正な報告（400）と同じ号車の連投（too_soon）は捨てる
+      if (res.status >= 500 || (res.status === 429 && (await res.json().catch(() => ({}))).reason === "too_many")) data.outbox.push(p);
     } catch { data.outbox.push(p); }
   }
   data.outbox = data.outbox.slice(-50); // ためすぎない
