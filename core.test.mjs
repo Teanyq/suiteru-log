@@ -199,21 +199,25 @@ test("recParam accepts only a single integer level 1-5", () => {
   }
 });
 
-test("reminderNotifications: one repeating notification per weekday (Capacitor weekday 2=Mon..6=Fri)", () => {
-  const ns = reminderNotifications("07:40");
-  assert.deepEqual(ns.map((n) => n.id), REMINDER_IDS);
-  assert.deepEqual(ns.map((n) => n.schedule.on.weekday), [2, 3, 4, 5, 6]);
-  assert.ok(ns.every((n) => n.schedule.on.hour === 7 && n.schedule.on.minute === 40 && n.schedule.allowWhileIdle));
-  assert.ok(ns.every((n) => n.isExactNotification === false)); // 正確アラーム権限なしで設定画面に飛ばさない
-  assert.ok(ns.every((n) => n.actionTypeId === REPORT_ACTIONS.id)); // 通知のボタンから直接記録
+test("reminderNotifications: next 4 weeks of working days only (no weekends or holidays), each at the set time", () => {
+  const now = new Date("2026-10-07T21:00:00"); // 水曜の夜
+  const ns = reminderNotifications("07:40", now);
+  const days = ns.map((n) => n.schedule.at);
+  assert.ok(days.every((d) => !isOffDay(d) && d.getHours() === 7 && d.getMinutes() === 40));
+  assert.ok(days.every((d) => d > now && d - now <= 28 * 86400000));
+  assert.ok(!days.some((d) => d.toDateString() === new Date("2026-10-12T12:00:00").toDateString()), "スポーツの日は鳴らない");
+  assert.equal(days[0].toDateString(), new Date("2026-10-08T12:00:00").toDateString()); // 今日の 7:40 は過ぎたので明日から
+  assert.ok(ns.length <= REMINDER_IDS.length && new Set(ns.map((n) => n.id)).size === ns.length);
+  assert.ok(ns.every((n) => n.isExactNotification === false && n.actionTypeId === REPORT_ACTIONS.id && n.schedule.allowWhileIdle));
   assert.deepEqual(REPORT_ACTIONS.actions.map((a) => a.id), ["l2", "l3", "l4"]);
-  assert.equal(reminderNotifications("bad"), null);
+  assert.equal(reminderNotifications("bad", now), null);
 });
 
-test("reminderNotifications: each weekday can carry its own one-line body (today's best car)", () => {
-  const ns = reminderNotifications("07:40", (dow) => (dow === 1 ? "月曜は 1号車" : null));
-  assert.equal(ns[0].body, "月曜は 1号車");
-  assert.equal(ns[1].body, "すいてるログでワンタップ記録"); // 出せない日はいつもの文面
+test("reminderNotifications: the answer goes in the title so it survives the one-line preview", () => {
+  const ns = reminderNotifications("07:40", new Date("2026-10-07T21:00:00"), (d) => ({ title: `${d.getDate()}日は1号車が空いてそう`, body: "田園都市線 渋谷方面" }));
+  assert.equal(ns[0].title, "8日は1号車が空いてそう");
+  assert.equal(ns[0].body, "田園都市線 渋谷方面");
+  assert.equal(reminderNotifications("07:40", new Date("2026-10-07T21:00:00"))[0].title, "今日の電車の混み具合は？"); // 予想が出せない時はいつもの文面
 });
 
 const LINES = [

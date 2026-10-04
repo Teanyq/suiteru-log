@@ -671,7 +671,7 @@ if (notif) {
 function renderReminder() {
   if (!notif) return;
   $("remind").textContent = "通知をセット";
-  $("remind-note").textContent = data.reminder ? `平日 ${data.reminder} に、今日のおすすめ号車を通知します。` : "平日のこの時刻に、今日のおすすめ号車を通知します。通知のボタン（座れる・立つけど余裕・混んでる）からそのまま記録できます。";
+  $("remind-note").textContent = data.reminder ? `平日 ${data.reminder} に、今日のおすすめ号車を通知します。` : "平日（祝日を除く）のこの時刻に、今日のおすすめ号車を通知します。通知のボタン（座れる・立つけど余裕・混んでる）からそのまま記録できます。";
   $("remind-off").hidden = !data.reminder;
   if (data.reminder) $("remind-time").value = data.reminder;
 }
@@ -682,7 +682,7 @@ $("remind").addEventListener("click", async () => {
   try {
     if ((await notif.requestPermissions()).display !== "granted") return toast("通知が許可されていません。端末の設定アプリで「すいてるログ」の通知を許可してください");
     await cancelReminder();
-    await notif.schedule({ notifications: reminderNotifications(t, reminderBody(t)) });
+    await notif.schedule({ notifications: reminderNotifications(t, new Date(), reminderText) });
   } catch {
     return toast("通知をセットできませんでした");
   }
@@ -700,23 +700,18 @@ $("remind-off").addEventListener("click", async () => {
 });
 renderReminder();
 // 朝の一言: 通知の本文にその曜日・時刻のおすすめ号車を入れる。予想は記録で変わるので、起動時と記録後に入れ直す
-function reminderBody(hhmm) {
-  return (dow) => {
-    const d = new Date();
-    d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7));
-    const [h, m] = hhmm.split(":").map(Number);
-    d.setHours(h, m, 0, 0);
-    const route = data.routes.find((r) => r.id === routeForTime(data.logs, d)) ?? currentRoute();
-    if (!route?.line) return null;
-    const { bests } = carsAt(route, d);
-    return `${route.name}：今日のおすすめは${bests.map((c) => `${c.car}号車`).join("・")}。乗ったらワンタップで記録`;
-  };
+// 通知の文面: 見出しに答え（閉じた通知でも切れない）、本文に路線と時刻。予想できない路線は null（いつもの文面）
+function reminderText(at) {
+  const route = data.routes.find((r) => r.id === routeForTime(data.logs, at)) ?? currentRoute();
+  if (!route?.line || (route.cars ?? 10) <= 2) return null;
+  const { bests } = carsAt(route, at);
+  return { title: `${bests.map((c) => `${c.car}号車`).join("・")}が空いてそう`, body: `${route.name}・${at.getHours()}時ごろ。乗ったら下のボタンで記録` };
 }
 async function refreshReminder() {
   if (!notif || !data.reminder) return;
   try {
     await cancelReminder();
-    await notif.schedule({ notifications: reminderNotifications(data.reminder, reminderBody(data.reminder)) });
+    await notif.schedule({ notifications: reminderNotifications(data.reminder, new Date(), reminderText) });
   } catch {}
 }
 refreshReminder();

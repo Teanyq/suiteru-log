@@ -235,24 +235,35 @@ export function recParam(search) {
 
 // アプリ版のリマインド（@capacitor/local-notifications 用）。平日の指定時刻に毎週くり返す。
 // Capacitor の weekday は 1=日曜 … 7=土曜なので月〜金は 2〜6
-export const REMINDER_IDS = [101, 102, 103, 104, 105];
+// 101〜130。日付ごとに入れるので最大 4 週間分の平日（＋以前の毎週くり返しの 101〜105 も同じ範囲で消せる）
+export const REMINDER_IDS = Array.from({ length: 30 }, (_, i) => 101 + i);
 // 通知のボタンから直接記録する（Android は最大 3 つ）。id の数字が混雑度
 export const REPORT_ACTIONS = { id: "REPORT", actions: [{ id: "l2", title: "座れる" }, { id: "l3", title: "立つけど余裕" }, { id: "l4", title: "混んでる" }] };
 
-// bodyFor(曜日 1=月〜5=金) で曜日ごとの本文（例: 今日のおすすめ号車）。null ならいつもの文面
-export function reminderNotifications(hhmm, bodyFor = () => null) {
+// 平日の朝の通知。毎週くり返しだと祝日にも鳴るので、次の 4 週間の「休みでない日」を日付で入れる
+// （起動のたび・記録のたびに入れ直すので、使っていれば途切れない）。
+// textFor(日時) で { title, body }（例: 見出しに今日のおすすめ号車）。null ならいつもの文面
+export function reminderNotifications(hhmm, now, textFor = () => null) {
   const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
   if (!m) return null;
-  const [hour, minute] = [Number(m[1]), Number(m[2])];
-  return REMINDER_IDS.map((id, i) => ({
-    id,
-    title: "今日の電車の混み具合は？",
-    body: bodyFor(i + 1) ?? "すいてるログでワンタップ記録",
-    schedule: { on: { weekday: i + 2, hour, minute }, allowWhileIdle: true },
-    // 正確アラーム権限は使わない（Play の制限対象）。true のままだと設定画面へ飛ばされる
-    isExactNotification: false,
-    actionTypeId: REPORT_ACTIONS.id,
-  }));
+  const out = [];
+  for (let i = 0; i <= 28 && out.length < REMINDER_IDS.length; i++) {
+    const at = new Date(now);
+    at.setDate(at.getDate() + i);
+    at.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    if (at <= now || at - now > 28 * 86400000 || isOffDay(at)) continue;
+    const text = textFor(at);
+    out.push({
+      id: REMINDER_IDS[out.length],
+      title: text?.title ?? "今日の電車の混み具合は？",
+      body: text?.body ?? "すいてるログでワンタップ記録",
+      schedule: { at, allowWhileIdle: true },
+      // 正確アラーム権限は使わない（Play の制限対象）。true のままだと設定画面へ飛ばされる
+      isExactNotification: false,
+      actionTypeId: REPORT_ACTIONS.id,
+    });
+  }
+  return out;
 }
 
 // 路線選択（www/lines.json）。エリア → 会社 → 路線 → 方面 とタップで絞り込む
