@@ -40,7 +40,7 @@ cd android && JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-21.0.12.101-hotsp
 | アプリ名・説明 | `docs/store/listing.md` |
 | アイコン 512px | `www/icon-512.png` |
 | フィーチャーグラフィック | `docs/store/feature-graphic.png` |
-| スクリーンショット | `docs/store/screenshots/android-*.png` |
+| スクリーンショット | `docs/store/screenshots/play-1〜3.png`（見出しつき。元の画面は android-*.png） |
 | カテゴリ | 地図／ナビ |
 | プライバシーポリシー | https://teanyq.github.io/suiteru-log/privacy.html |
 | アプリの署名 | Play App Signing を使う（既定）。アップロードするのは上で作った鍵で署名した AAB |
