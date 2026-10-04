@@ -47,6 +47,11 @@
          位置は端末の中で駅を探すのに使うだけで、保存も送信もしない -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- 位置情報の権限を付けると「GPS が必須」とみなされ、GPS のない端末（一部のタブレット等）が Google Play の対象外になる。
+         位置情報は任意の機能なので、なくても入れられるようにする（1.12 で 6 機種が外れた警告への対応） -->
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.location.network" android:required="false" />
     <!-- 通知プラグインが追加する正確アラーム権限は外す。Google Play はアラーム/カレンダーアプリ以外に認めず、通勤リマインドは数分ずれても困らない -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
 </manifest>

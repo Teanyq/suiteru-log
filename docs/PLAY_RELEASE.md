@@ -75,3 +75,8 @@ cd android && JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-21.0.12.101-hotsp
 1. **内部テスト**に AAB を上げ、自分の端末でインストールして動作確認
 2. 新規の個人デベロッパーアカウントは、製品版の前に **クローズドテスト（12 人以上が 14 日間参加）** が必要な場合がある。Play Console の案内に従う
 3. 製品版として公開
+
+## メモ: 対応端末が減った警告（1.12, 2026-10-04）
+
+位置情報の権限（ACCESS_FINE_LOCATION）を足すと、Android は「GPS が必須」とみなし、GPS のない端末が対象外になる（Play Console で「6 台のデバイスがサポートされなくなりました」）。
+位置情報は任意の機能なので、AndroidManifest.xml で `android.hardware.location*` を `required="false"` にして解消（versionCode 14）。権限を足すときは、同じように「その機能がない端末を外していないか」を確認する。
