@@ -504,6 +504,11 @@ function closePicker() {
   $("picker").close();
 }
 $("picker-back").addEventListener("click", () => { pickerStack.pop(); drawStep(); });
+// Android の戻るボタン: 選択シートが開いていれば 1 段戻る（いちばん上なら閉じる）。何も開いていなければアプリを下げる
+if (isNativeApp) window.Capacitor.Plugins.App?.addListener("backButton", () => {
+  if (!$("picker").open) return window.Capacitor.Plugins.App.minimizeApp();
+  if (pickerStack.length > 1) { pickerStack.pop(); drawStep(); } else closePicker();
+});
 $("picker-close").addEventListener("click", closePicker);
 
 // 路線を選ぶ: エリア → 会社 → 路線 → 方面。onDone(name, line) で追加 or 選び直し
