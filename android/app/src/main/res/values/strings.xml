@@ -4,4 +4,12 @@
     <string name="title_activity_main">すいてるログ</string>
     <string name="package_name">io.github.teanyq.suiteru</string>
     <string name="custom_url_scheme">io.github.teanyq.suiteru</string>
+    <string name="shortcut_l5">ぎゅうぎゅう</string>
+    <string name="shortcut_l5_long">ぎゅうぎゅうで記録</string>
+    <string name="shortcut_l4">混んでる</string>
+    <string name="shortcut_l4_long">混んでるで記録</string>
+    <string name="shortcut_l3">立つけど余裕</string>
+    <string name="shortcut_l3_long">立つけど余裕で記録</string>
+    <string name="shortcut_l2">座れる</string>
+    <string name="shortcut_l2_long">座れるで記録</string>
 </resources>

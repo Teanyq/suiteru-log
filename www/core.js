@@ -233,8 +233,6 @@ export function recParam(search) {
   return all.length === 1 && /^[1-5]$/.test(all[0]) ? Number(all[0]) : null;
 }
 
-// アプリ版のリマインド（@capacitor/local-notifications 用）。平日の指定時刻に毎週くり返す。
-// Capacitor の weekday は 1=日曜 … 7=土曜なので月〜金は 2〜6
 // 101〜130。日付ごとに入れるので最大 4 週間分の平日（＋以前の毎週くり返しの 101〜105 も同じ範囲で消せる）
 export const REMINDER_IDS = Array.from({ length: 30 }, (_, i) => 101 + i);
 export const REMINDER_IDS_BACK = Array.from({ length: 30 }, (_, i) => 131 + i); // 帰りの通知

@@ -789,6 +789,23 @@ if (quick) {
   history.replaceState(null, "", location.pathname + location.hash);
   record(quick, LEVELS[quick - 1][1]);
 }
+// アプリ版: アイコン長押しのショートカット（io.github.teanyq.suiteru://rec?rec=N）。前回の号車で記録して、アプリを下げる。
+// 起動時（getLaunchUrl）と、開いている時（appUrlOpen）の両方で来る。同じ起動で二重に記録しない
+if (isNativeApp && window.Capacitor.Plugins.App) {
+  const AppPlugin = window.Capacitor.Plugins.App;
+  let handled = null;
+  const quickFromUrl = (url) => {
+    const level = url && recParam(url.slice(url.indexOf("?")));
+    if (!level || handled === url + Math.floor(Date.now() / 60000)) return;
+    handled = url + Math.floor(Date.now() / 60000);
+    autoRoute();
+    setTime();
+    record(level, LEVELS[level - 1][1]);
+    setTimeout(() => AppPlugin.minimizeApp(), 1800); // 記録できたことを一瞬見せてから
+  };
+  AppPlugin.getLaunchUrl().then((r) => quickFromUrl(r?.url)).catch(() => {});
+  AppPlugin.addListener("appUrlOpen", ({ url }) => quickFromUrl(url));
+}
 // ストレージ逼迫時にブラウザが勝手に消さないよう依頼（許可されなくても動作は同じ）
 navigator.storage?.persist?.().catch(() => {});
 // アプリ版（Capacitor）はファイルが同梱済みなので Service Worker は不要（iOS の capacitor:// では登録もできない）

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- アイコン長押しの近道: 混み具合を選ぶと、前回の号車でそのまま記録してアプリを下げる（app.js の quickRecord） -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="rec5" android:enabled="true" android:icon="@drawable/ic_shortcut_l5"
+        android:shortcutShortLabel="@string/shortcut_l5" android:shortcutLongLabel="@string/shortcut_l5_long">
+        <intent android:action="android.intent.action.VIEW" android:data="io.github.teanyq.suiteru://rec?rec=5"
+            android:targetPackage="io.github.teanyq.suiteru" android:targetClass="io.github.teanyq.suiteru.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="rec4" android:enabled="true" android:icon="@drawable/ic_shortcut_l4"
+        android:shortcutShortLabel="@string/shortcut_l4" android:shortcutLongLabel="@string/shortcut_l4_long">
+        <intent android:action="android.intent.action.VIEW" android:data="io.github.teanyq.suiteru://rec?rec=4"
+            android:targetPackage="io.github.teanyq.suiteru" android:targetClass="io.github.teanyq.suiteru.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="rec3" android:enabled="true" android:icon="@drawable/ic_shortcut_l3"
+        android:shortcutShortLabel="@string/shortcut_l3" android:shortcutLongLabel="@string/shortcut_l3_long">
+        <intent android:action="android.intent.action.VIEW" android:data="io.github.teanyq.suiteru://rec?rec=3"
+            android:targetPackage="io.github.teanyq.suiteru" android:targetClass="io.github.teanyq.suiteru.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="rec2" android:enabled="true" android:icon="@drawable/ic_shortcut_l2"
+        android:shortcutShortLabel="@string/shortcut_l2" android:shortcutLongLabel="@string/shortcut_l2_long">
+        <intent android:action="android.intent.action.VIEW" android:data="io.github.teanyq.suiteru://rec?rec=2"
+            android:targetPackage="io.github.teanyq.suiteru" android:targetClass="io.github.teanyq.suiteru.MainActivity" />
+    </shortcut>
+</shortcuts>
