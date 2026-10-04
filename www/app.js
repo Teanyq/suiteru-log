@@ -234,7 +234,9 @@ async function flushOutbox() {
   const pending = data.outbox.splice(0);
   for (const p of pending) {
     try {
-      const res = await fetch(`${API}/v1/reports`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+      // 遅延の報告（kind: "delay"）は別の受付へ。どちらも送る中身から kind は外す
+      const { kind, ...body } = p;
+      const res = await fetch(`${API}/v1/${kind === "delay" ? "delays" : "reports"}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       // サーバー側の一時的な不調と、回線全体の混雑（同じ IP からの上限: too_many）は後で送り直す。
       // 不正な報告（400）と同じ号車の連投（too_soon）は捨てる
       if (res.status >= 500 || (res.status === 429 && (await res.json().catch(() => ({}))).reason === "too_many")) data.outbox.push(p);
@@ -256,7 +258,7 @@ async function loadShared(route, daytype, slot) {
   try {
     const res = await fetch(`${API}/v1/cars?${q}`);
     const body = res.ok ? await res.json() : {};
-    const entry = { at: Date.now(), cars: body.cars ?? [], moods: body.moods ?? [], riders: body.riders ?? [] };
+    const entry = { at: Date.now(), cars: body.cars ?? [], moods: body.moods ?? [], riders: body.riders ?? [], delays: body.delays ?? 0 };
     sharedCache.set(key, entry);
     return entry;
   } catch { return null; }
@@ -355,7 +357,7 @@ function renderCars() {
   const shared = hit?.cars ?? [], moods = hit?.moods ?? [], riders = hit?.riders ?? [];
   if (data.share && route.line && !renderCars.loading) {
     renderCars.loading = true;
-    loadShared(route, daytype, slot).then((r) => { renderCars.loading = false; if (r && r !== hit && (r.cars.length || r.moods.length)) renderCars(); });
+    loadShared(route, daytype, slot).then((r) => { renderCars.loading = false; if (r && r !== hit && (r.cars.length || r.moods.length || r.delays)) renderCars(); });
   }
   const { est, bests } = carsAt(route, d, shared);
   const best = bests[0];
@@ -382,6 +384,7 @@ function renderCars() {
       el("span", { textContent: "★ 報告の多さ" }),
       el("button", { type: "button", className: "link-btn", textContent: `${route.cars ?? 10}両編成（変える）`, onclick: pickCars })),
     el("p", { className: "note", textContent: basis }),
+    (hit?.delays ?? 0) >= 2 ? el("p", { className: "delay-note", textContent: `⚠ この30分で、${dirOf(route)}方面の遅延の報告が${hit.delays}人から。いつもより混むかも` }) : "",
     riders.length ? el("p", { className: "nicknames", textContent: `この30分に乗っていた仲間: ${riders.map((r) => `${r.car}号車 ${r.n}人`).join("、")}` }) : "",
     moods.length ? el("p", { className: "nicknames", textContent: `今日の号車: ${moods.map((m) => `${m.car}号車＝${MOODS[m.mood][0]}${nicknameOf(m.mood)}（${m.n}人）`).join("、")}` }) : "",
   );
@@ -431,6 +434,11 @@ function record(level, label) {
   const payload = data.share && reportPayload(data.device, route, log);
   // 気分スタンプを押す時間を待ってから送る（押したらすぐ送る。アプリを閉じても次回送る）
   if (payload) { data.outbox.push(payload); setTimeout(flushOutbox, 10000); }
+  // 遅延の印は平均には入れないが、「いま遅れているらしい」として同じ路線・方面の人に伝える
+  if (data.share && log.tags?.includes("delay") && route?.line && dirOf(route)) {
+    data.outbox.push({ kind: "delay", device: data.device, line: route.line, dir: dirOf(route) });
+    flushOutbox();
+  }
   save();
   buzz();
   const note = log.tags ? `（${log.tags.map((x) => TAGS[x]).join("・")}：集計外）` : "";

@@ -22,3 +22,9 @@ CREATE TABLE IF NOT EXISTS views (
   PRIMARY KEY (line, dir, daytype, slot, day, device)
 );
 CREATE INDEX IF NOT EXISTS views_day ON views (day);
+
+-- 遅延の報告（平均には入れない。直近 30 分の人数だけ使い、1 日で消す）
+CREATE TABLE IF NOT EXISTS delays (
+  device TEXT NOT NULL, line TEXT NOT NULL, dir TEXT NOT NULL, created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS delays_lookup ON delays (line, dir, created_at);

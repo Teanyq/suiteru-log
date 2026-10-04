@@ -1,5 +1,5 @@
 // Cloudflare Worker: 匿名の号車混雑報告の受付と集計（docs/SPEC-v2.md）
-import { parseReport, aggregate, moodsOf, dayStartJst, RATE_LIMIT_MS, WINDOW_DAYS, HELPED_DAYS, DAILY_CAP, rankingOf } from "./api.mjs";
+import { parseReport, aggregate, moodsOf, dayStartJst, RATE_LIMIT_MS, WINDOW_DAYS, HELPED_DAYS, DAILY_CAP, rankingOf, parseDelay, DELAY_WINDOW_MS } from "./api.mjs";
 
 // アプリ（Android: https://localhost / iOS: capacitor://localhost）と Web 版からだけ受け付ける
 const ORIGINS = new Set(["https://teanyq.github.io", "https://localhost", "capacitor://localhost", "http://localhost:5180"]);
@@ -38,6 +38,24 @@ export default {
       return json({ ok: true }, 201, cors);
     }
 
+    // 遅延の報告: 同じ端末・路線・方面は 10 分に 1 回。IP ごとの上限は報告と共通
+    if (url.pathname === "/v1/delays" && req.method === "POST") {
+      if (env.POST_LIMIT && !(await env.POST_LIMIT.limit({ key: req.headers.get("CF-Connecting-IP") ?? "" })).success) return json({ ok: false, reason: "too_many" }, 429, cors);
+      if (Number(req.headers.get("Content-Length") ?? 0) > MAX_BODY) return json({ ok: false }, 413, cors);
+      let body;
+      try { body = JSON.parse((await req.text()).slice(0, MAX_BODY)); } catch { return json({ ok: false }, 400, cors); }
+      const r = parseDelay(body);
+      if (!r) return json({ ok: false }, 400, cors);
+      const now = Date.now();
+      const recent = await env.DB.prepare("SELECT 1 FROM delays WHERE device = ? AND line = ? AND dir = ? AND created_at > ? LIMIT 1").bind(r.device, r.line, r.dir, now - 10 * 60000).first();
+      if (recent) return json({ ok: false, reason: "too_soon" }, 429, cors);
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO delays (device, line, dir, created_at) VALUES (?, ?, ?, ?)").bind(r.device, r.line, r.dir, now),
+        env.DB.prepare("DELETE FROM delays WHERE created_at < ?").bind(now - 86400000), // 1 日で消す（今の遅延にしか使わない）
+      ]);
+      return json({ ok: true }, 201, cors);
+    }
+
     if (url.pathname === "/v1/cars" && req.method === "GET") {
       const q = url.searchParams;
       const slot = Number(q.get("slot"));
@@ -66,7 +84,9 @@ export default {
       const { results: riders } = await env.DB.prepare(
         "SELECT car, COUNT(DISTINCT device) AS n FROM reports WHERE line = ? AND dir = ? AND created_at > ? AND device != ? GROUP BY car")
         .bind(p.line, p.dir, now - 30 * 60000, device).all();
-      return json({ cars: aggregate(results, slot, now), moods: moodsOf(moods), riders }, 200, { ...cors, "Cache-Control": "public, max-age=60" });
+      const delay = await env.DB.prepare("SELECT COUNT(DISTINCT device) AS n FROM delays WHERE line = ? AND dir = ? AND created_at > ?")
+        .bind(p.line, p.dir, now - DELAY_WINDOW_MS).first();
+      return json({ cars: aggregate(results, slot, now), moods: moodsOf(moods), riders, delays: delay?.n ?? 0 }, 200, { ...cors, "Cache-Control": "public, max-age=60" });
     }
 
     // この端末の報告がある枠（路線・方面・平日休日・15 分枠）を、ほかの人が何人・日見に来たか（直近 HELPED_DAYS 日）

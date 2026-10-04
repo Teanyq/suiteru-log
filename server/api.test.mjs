@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseReport, aggregate, moodsOf, dayStartJst, DAILY_CAP, nickOf, rankingOf } from "./api.mjs";
+import { parseReport, aggregate, moodsOf, dayStartJst, DAILY_CAP, nickOf, rankingOf, parseDelay } from "./api.mjs";
 
 const ok = { device: "d-123", line: { c: "東急電鉄", l: "田園都市線" }, dir: "渋谷", daytype: "wd", slot: 30, car: 5, level: 4 };
 
@@ -88,4 +88,10 @@ test("rankingOf: top 3 by report count plus my own rank (ties share a rank)", ()
   assert.equal(r.total, 22); // 路線の報告の集まり具合（30 日の合計件数）
   assert.equal(r.people, 5);
   assert.equal(rankingOf(rows, "nobody").me, null);
+});
+
+test("parseDelay accepts just device, line and direction", () => {
+  assert.deepEqual(parseDelay({ device: "d1", line: { c: "東急電鉄", l: "田園都市線" }, dir: "渋谷" }), { device: "d1", line: "東急電鉄|田園都市線", dir: "渋谷" });
+  for (const bad of [null, {}, { device: "d1", line: { c: "a|b", l: "x" }, dir: "y" }, { device: "", line: { c: "a", l: "b" }, dir: "c" }])
+    assert.equal(parseDelay(bad), null);
 });

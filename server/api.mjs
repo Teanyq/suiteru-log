@@ -109,3 +109,10 @@ export function rankingOf(rows, me) {
     me: mine ? { rank: mine.rank, n: mine.n, name: nickOf(me), of: ranked.length } : null,
   };
 }
+
+// 遅延の報告（平均には入れず、「いま遅れているらしい」を伝えるだけ）
+export const DELAY_WINDOW_MS = 30 * 60 * 1000;
+export function parseDelay(body) {
+  const r = parseReport({ ...body, daytype: "wd", slot: 0, car: 1, level: 1 });
+  return r && { device: r.device, line: r.line, dir: r.dir };
+}
