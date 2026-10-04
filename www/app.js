@@ -370,11 +370,11 @@ function renderCars() {
     // 2 両以下は号車の差がほとんどないので、言い切らない（空いてる時間帯は下の「空いてる時間帯」へ）
     (route.cars ?? 10) <= 2
       ? el("p", { className: "reco-head" }, el("strong", { textContent: `${route.cars}両編成` }), " なので号車の差は小さめ。空いてる時間帯は下の「空いてる時間帯」へ")
-      : el("p", { className: "reco-head" }, el("strong", { textContent: bests.map((c) => `${c.car}号車`).join("・") }), " が空いてそう"),
+      : el("p", { className: "reco-head" }, el("strong", { textContent: bests.map((c) => `${c.car}号車`).join("・") }), " ", el("span", { className: "nowrap", textContent: "が空いてそう" })),
     el("div", { className: "train mini", role: "img", ariaLabel: est.map((c) => `${c.car}号車 ${LEVELS[Math.round(c.value) - 1][1]}`).join("、") },
       // 混んでいる号車は斜線の模様も付ける（色が見分けにくい人にも伝わるように）
       ...est.map((c) => el("div", { className: `car-cell${c.stars === 1 ? " guess" : ""}${bests.includes(c) ? " best" : ""}${c.value >= 3.5 ? " crowded" : ""}`, style: `background-color:${color(c.value)}` },
-        el("b", { textContent: c.car }), el("small", { textContent: "★".repeat(c.stars) })))),
+        el("b", { textContent: c.car, className: c.car >= 10 ? "wide" : "" }), el("small", { textContent: "★".repeat(c.stars) })))),
     el("p", { className: "legend" },
       el("span", {}, el("i", { style: "background:var(--l1)" }), "空いてる"),
       el("span", {}, el("i", { className: "crowded", style: "background-color:var(--l5)" }), "混んでる（斜線）"),
