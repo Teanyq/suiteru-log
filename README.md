@@ -52,6 +52,14 @@ npm test
 
 Web 版の画面ファイルはビルド不要（依存なし）。アプリ化に Capacitor、サーバーに wrangler を使う（`npm install` / `cd server && npm install`）。サーバーのテストは `cd server && node --test api.test.mjs`。
 
+## 利用状況を見る
+
+```bash
+npm run stats
+```
+
+直近 7 日の報告数・路線ごとの件数・報告した人数を表示する（本番 D1 を読むだけ。端末 ID は出さない。wrangler にログイン済みであること）。
+
 ## Android アプリをビルドする
 
 必要なもの: Android SDK（Platform 36・Build-Tools 36）と **JDK 21**（Android Studio 同梱の JDK 25 では Gradle 8.14 が動かない）。

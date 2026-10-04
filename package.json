@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test": "node --test core.test.mjs store.test.mjs region.test.mjs",
-    "sync": "cap sync"
+    "sync": "cap sync",
+    "stats": "node scripts/stats.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
