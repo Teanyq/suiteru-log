@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL, companyGroups } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL, companyGroups, journeyOf, bingoOf, BINGO_POOL, bingoBonus } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -338,18 +338,19 @@ test("parseBackup keeps a record's car (1-20)", () => {
 });
 
 test("pointsOf: 10 per record, +5 with a car, +50 for every 5 consecutive weekdays", () => {
+  const base = (logs) => pointsOf(logs) - bingoBonus(logs); // ビンゴのごほうびは別のテスト
   const rec = (day, car) => ({ route: "r1", t: `${day}T07:40:00`, level: 3, ...(car ? { car } : {}) });
-  assert.equal(pointsOf([]), 0);
-  assert.equal(pointsOf([rec("2026-09-28"), rec("2026-09-28", 3)]), 25);
+  assert.equal(base([]), 0);
+  assert.equal(base([rec("2026-09-28"), rec("2026-09-28", 3)]), 25);
   // 月〜金（9/28〜10/2）の 5 連続 = 5×10 + 50
   const week = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"].map((d) => rec(d));
-  assert.equal(pointsOf(week), 100);
+  assert.equal(base(week), 100);
   // 土日をはさんでも途切れない: 木金 + 月火水 = 5 連続
   const across = ["2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07"].map((d) => rec(d));
-  assert.equal(pointsOf(across), 100);
+  assert.equal(base(across), 100);
   // 平日を 1 日空けると途切れる
   const broken = ["2026-09-28", "2026-09-29", "2026-10-01", "2026-10-02", "2026-10-05"].map((d) => rec(d));
-  assert.equal(pointsOf(broken), 50);
+  assert.equal(base(broken), 50);
 });
 
 test("titleOf picks the title by points and says how far to the next", () => {
@@ -538,4 +539,51 @@ test("companyGroups splits a long company list under headings, keeping the compa
     { label: "私鉄", companies: ["東急電鉄", "小田急電鉄"] },
     { label: "その他（第三セクターなど）", companies: ["ゆりかもめ"] },
   ]);
+});
+
+test("journeyOf: each record moves one real station; at the terminal it transfers to a line through that station", () => {
+  const L = [
+    { c: "C", l: "A線", k: 4, r: ["関東"], s: ["a", "b", "c", "d"] },
+    { c: "C", l: "B線", k: 4, r: ["関東"], s: ["x", "d", "e", "f", "g"] },
+    { c: "C", l: "C線", k: 4, r: ["関東"], s: ["g", "h"] },
+  ];
+  const start = { c: "C", l: "A線", dir: "d" };
+  const j0 = journeyOf(L, start, 0);
+  assert.deepEqual([j0.line.l, j0.at, j0.next, j0.toEnd, j0.terminal, j0.done.length], ["A線", "a", "b", 3, "d", 0]);
+  assert.deepEqual([journeyOf(L, start, 2).at, journeyOf(L, start, 2).toEnd], ["c", 1]);
+  const j3 = journeyOf(L, start, 3); // A 線を制覇して、d を通る B 線へ（長い方 = g 方面）
+  assert.deepEqual([j3.line.l, j3.at, j3.next, j3.terminal, j3.done.map((d) => d.l)], ["B線", "d", "e", "g", ["A線"]]);
+  const j6 = journeyOf(L, start, 6);
+  assert.deepEqual([j6.line.l, j6.at, j6.next, j6.done.map((d) => d.l)], ["C線", "g", "h", ["A線", "B線"]]);
+  assert.equal(journeyOf(L, { c: "C", l: "A線", dir: "a" }, 1).at, "c"); // 逆方向（a 方面）は d から
+  assert.equal(journeyOf(L, start, 500).passed, 500); // どこまで行っても止まらない
+});
+
+test("bingoOf: 3x3 weekly card with a FREE center; cells fill from ordinary records; never asks for a crowding level", () => {
+  const now = new Date("2026-10-09T20:00:00"); // 金曜
+  const b = bingoOf([], now);
+  assert.equal(b.cells.length, 9);
+  assert.equal(b.cells[4].id, "free");
+  assert.equal(b.cells[4].hit, true);
+  assert.equal(b.lines, 0);
+  assert.deepEqual(bingoOf([], new Date("2026-10-06T08:00:00")).cells.map((c) => c.id), b.cells.map((c) => c.id), "同じ週は同じマス");
+  assert.notDeepEqual(bingoOf([], new Date("2026-10-13T08:00:00")).cells.map((c) => c.id), b.cells.map((c) => c.id), "週が変わるとマスも変わる");
+  assert.ok(BINGO_POOL.every((p) => !/ガラガラ|座れる|混んで|ぎゅうぎゅう|空いて/.test(p.label)), "混み具合を指定するマスはない");
+  // その週の記録でマスが開く（例: 号車つきの記録 → 「号車を選んで記録」）
+  const logs = [{ route: "r1", t: "2026-10-06T08:00:00", level: 3, car: 2, mood: "happy" }, { route: "r1", t: "2026-10-06T18:30:00", level: 3 }];
+  const hits = bingoOf(logs, now).cells.filter((c) => c.hit).map((c) => c.id);
+  for (const id of hits) assert.ok(["free", "car", "mood", "both", "night", "mon"].includes(id), id);
+  assert.equal(bingoOf(logs, new Date("2026-10-13T08:00:00")).cells.filter((c) => c.hit).length, 1, "先週の記録は数えない");
+});
+
+test("bingoBonus: each completed bingo line of each week is +20pt, and pointsOf includes it", () => {
+  const logs = [];
+  for (const d of ["05", "06", "07", "08", "09", "10"]) for (const h of ["06:30", "18:30"])
+    logs.push({ route: "r1", t: `2026-10-${d}T${h}:00`, level: 3, car: d === "05" ? 1 : 2, mood: "happy", pred: 3 });
+  const lines = bingoOf(logs, new Date("2026-10-10T12:00:00")).lines;
+  assert.ok(lines >= 1);
+  assert.equal(bingoBonus(logs), 20 * lines);
+  const noBingo = logs.slice(0, 1); // 1 件だけではそろわない
+  assert.equal(bingoBonus(noBingo), 0);
+  assert.equal(pointsOf(logs) - bingoBonus(logs), logs.reduce((p, l) => p + 10 + 5 + 5, 0) + 50); // 記録・号車・的中・5 日連続
 });

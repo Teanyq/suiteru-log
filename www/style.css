@@ -104,6 +104,14 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .more summary, #history summary { color: var(--muted); font-size: .85rem; cursor: pointer; padding: 12px 0; }
 .remind-row { flex-wrap: wrap; align-items: center; }
 .remind-row label { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; }
+.trip-line { margin: 0; font-size: .85rem; color: var(--muted); }
+.trip-at { margin: 4px 0 8px; font-size: 1.05rem; }
+.trip-at strong { font-size: 1.4rem; color: var(--accent); }
+.trip-bar { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.trip-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.bingo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.bingo > div { min-height: 64px; display: grid; place-content: center; text-align: center; padding: 6px; border-radius: 10px; border: 1px dashed var(--line); font-size: .8rem; line-height: 1.3; }
+.bingo > div.hit { background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); font-weight: 600; }
 .delay-note { margin: 6px 0 0; font-size: .85rem; font-weight: 600; }
 .nicknames { margin: 6px 0 0; font-size: .85rem; font-weight: 600; }
 .tags-hint { color: var(--muted); font-size: .75rem; }

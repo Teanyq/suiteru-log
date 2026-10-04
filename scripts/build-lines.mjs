@@ -19,12 +19,43 @@ for (const { properties: p, geometry: g } of features) {
   if (!l.stations.has(p.N02_005)) l.stations.set(p.N02_005, [lat, lon]);
 }
 
-// 駅の並び: 路線の広がりが大きい方向（東西 or 南北）で並べる。直線的な路線ではほぼ沿線順になる
+// 駅の並び: 線路の形の情報はないので、駅を「全体の道のりがいちばん短くなる一本道」でつなぐ
+// （どの駅から始めるかを全部試し、近い駅へ順に進んだあと 2-opt で交差をほどく）。
+// 東西・南北に並べるだけだと、大江戸線のように曲がった・輪になった路線で隣り合わない駅が並ぶため
 function ordered(stations) {
   const pts = [...stations];
-  const span = (i) => Math.max(...pts.map((s) => s[1][i])) - Math.min(...pts.map((s) => s[1][i]));
-  const axis = span(1) >= span(0) ? 1 : 0;
-  return pts.sort((a, b) => a[1][axis] - b[1][axis]).map(([name]) => name);
+  if (pts.length < 3) return pts.map(([name]) => name);
+  const d = (a, b) => Math.hypot(a[1][0] - b[1][0], (a[1][1] - b[1][1]) * Math.cos((a[1][0] * Math.PI) / 180));
+  const length = (path) => path.reduce((sum, p, i) => sum + (i ? d(path[i - 1], p) : 0), 0);
+  const twoOpt = (path) => {
+    for (let improved = true; improved; ) {
+      improved = false;
+      for (let i = 0; i < path.length - 1; i++)
+        for (let j = i + 2; j < path.length; j++) {
+          // 区間 [i+1, j] を逆向きにして短くなるなら入れ替える（端は開いたまま）
+          const before = d(path[i], path[i + 1]) + (j + 1 < path.length ? d(path[j], path[j + 1]) : 0);
+          const after = d(path[i], path[j]) + (j + 1 < path.length ? d(path[i + 1], path[j + 1]) : 0);
+          if (after < before - 1e-12) { path.splice(i + 1, j - i, ...path.slice(i + 1, j + 1).reverse()); improved = true; }
+        }
+    }
+    return path;
+  };
+  let best = null;
+  for (const start of pts) {
+    const path = [start], rest = new Set(pts.filter((p) => p !== start));
+    while (rest.size) {
+      const last = path.at(-1);
+      let near = null;
+      for (const p of rest) if (!near || d(last, p) < d(last, near)) near = p;
+      path.push(near); rest.delete(near);
+    }
+    twoOpt(path);
+    if (!best || length(path) < length(best)) best = path;
+  }
+  // 向きをそろえる（西→東 or 南→北）。方面の名前（終点）は両端なので向きには影響しない
+  const axis = Math.abs(best.at(-1)[1][1] - best[0][1][1]) >= Math.abs(best.at(-1)[1][0] - best[0][1][0]) ? 1 : 0;
+  if (best[0][1][axis] > best.at(-1)[1][axis]) best.reverse();
+  return best.map(([name]) => name);
 }
 
 const out = [...lines.values()]

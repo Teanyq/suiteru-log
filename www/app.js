@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companyGroups, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companyGroups, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf, journeyOf, bingoOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -296,6 +296,37 @@ async function loadRank() {
   } catch {}
 }
 
+// 通勤すごろく: 記録 1 回で本物の駅を 1 つ進む（最初の路線は登録した路線・方面）
+const tripStart = () => data.routes.find((r) => r.line && dirOf(r));
+const tripNow = (n = data.logs.length) => {
+  if (!LINES) return null;
+  // 登録順に、駅データのある最初の路線から出発（一覧にない路線は飛ばす）
+  for (const r of data.routes.filter((x) => x.line && dirOf(x))) {
+    const j = journeyOf(LINES, { ...r.line, dir: dirOf(r) }, n);
+    if (j) return j;
+  }
+  return null;
+};
+function renderTrip() {
+  if (!tripStart()) return ($("trip-sec").hidden = true);
+  if (!LINES) return void loadLines().then(renderTrip).catch(() => {});
+  const j = tripNow();
+  $("trip-sec").hidden = !j;
+  if (!j) return;
+  $("trip").replaceChildren(
+    el("p", { className: "trip-line", textContent: `🚃 ${lineLabel(j.line)}（${j.terminal}方面）` }),
+    el("p", { className: "trip-at" }, "いま ", el("strong", { textContent: j.at }), `　次は ${j.next}`),
+    el("div", { className: "trip-bar", role: "img", ariaLabel: `${j.terminal}まであと${j.toEnd}駅` }, el("i", { style: `width:${Math.round(100 * (j.steps - j.toEnd) / j.steps)}%` })),
+    el("p", { className: "note", textContent: `${j.terminal}まであと${j.toEnd}駅で路線制覇。1回記録するごとに1駅進みます。これまで${j.passed}駅・制覇${j.done.length}路線${j.done.length ? `（${j.done.slice(-3).map(lineLabel).join("・")}）` : ""}` }),
+  );
+}
+// 今週のビンゴ: いつもの記録で自然にマスが開く。毎週月曜に新しいカード
+function renderBingo() {
+  const b = bingoOf(data.logs, new Date());
+  $("bingo").replaceChildren(...b.cells.map((c) => el("div", { className: c.hit ? "hit" : "", textContent: c.hit && c.id !== "free" ? `✓ ${c.label}` : c.label })));
+  $("bingo-note").textContent = b.lines ? `🎯 ビンゴ ${b.lines}列！（1列ごとに +20pt）` : "記録するとマスが開きます。たて・よこ・ななめにそろうと +20pt。毎週月曜に新しいカード";
+}
+
 function renderRecap() {
   const r = monthRecap(data.logs, new Date());
   $("recap-sec").hidden = !r.rides;
@@ -408,7 +439,7 @@ function renderPoints() {
     g.n ? el("small", { textContent: ` 予想的中 ${g.hit}/${g.n}` }) : "");
 }
 
-const render = () => { if (timeAuto) setTime(); renderRoutes(); renderShare(); renderPoints(); renderRecap(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+const render = () => { if (timeAuto) setTime(); renderRoutes(); renderShare(); renderPoints(); renderTrip(); renderBingo(); renderRecap(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 // 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
 // Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）
@@ -428,7 +459,7 @@ function record(level, label) {
   if (pred) log.pred = pred;
   const tags = [...activeTags, ...(data.periodMode ? ["period"] : [])];
   if (tags.length) log.tags = tags;
-  const before = pointsOf(data.logs);
+  const before = pointsOf(data.logs), tripBefore = tripNow(), bingoBefore = bingoOf(data.logs, d);
   data.logs.push(log);
   const gained = pointsOf(data.logs) - before;
   const payload = data.share && reportPayload(data.device, route, log);
@@ -450,7 +481,15 @@ function record(level, label) {
   const mates = car && sharedHitOf(route, d)?.riders?.find((r) => r.car === car)?.n;
   // その号車に今月何回乗ったか（記録から数えるだけ。入力なしの小さな発見）
   const ym = log.t.slice(0, 7), times = car ? data.logs.filter((l) => l.route === log.route && l.car === car && l.t.startsWith(ym)).length : 0;
-  const cheer = (mates ? `いま${car}号車には仲間が${mates}人。` : "") + (times >= 3 ? `${car}号車は今月${times}回目。${times >= 10 ? "もはや指定席" : "常連です"}。` : "") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length, hour: d.getHours(), month: d.getMonth() + 1 });
+  // あそびの進み具合（すごろく・ビンゴ）を 1 行で
+  const tripAfter = tripNow(), bingoAfter = bingoOf(data.logs, d);
+  const opened = bingoAfter.cells.filter((c, i) => c.hit && !bingoBefore.cells[i].hit).map((c) => `「${c.label}」`);
+  const fun = [
+    tripAfter ? (tripAfter.done.length > (tripBefore?.done.length ?? 0) ? `🎉 ${lineLabel(tripAfter.done.at(-1))} 制覇！次は${lineLabel(tripAfter.line)}へ` : `すごろく：${tripAfter.at}に到着`) : "",
+    bingoAfter.lines > bingoBefore.lines ? "🎯 ビンゴ！+20pt" : opened.length ? `ビンゴの${opened.join("")}が開いた` : "",
+  ].filter(Boolean).join("　");
+  const cheer = (fun ? `${fun}
+` : "") + (mates ? `いま${car}号車には仲間が${mates}人。` : "") + (times >= 3 ? `${car}号車は今月${times}回目。${times >= 10 ? "もはや指定席" : "常連です"}。` : "") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length, hour: d.getHours(), month: d.getMonth() + 1 });
   // 記録のあとに気分スタンプ（任意）。押せば報告に添えて、号車のあだ名に使う
   const moods = el("span", { className: "toast-moods" }, "いまの気分は？", ...Object.entries(MOODS).map(([key, [emoji, word]]) =>
     el("button", { type: "button", textContent: emoji, ariaLabel: word, onclick: () => {
