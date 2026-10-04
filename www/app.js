@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companyGroups, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companyGroups, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -672,24 +672,35 @@ $("export").addEventListener("click", exportBackup);
 
 // アプリ版は端末のローカル通知、Web 版は定時通知ができないので .ics をカレンダーに入れてもらう
 const notif = isNativeApp ? window.Capacitor.Plugins.LocalNotifications : null;
-const cancelReminder = () => notif.cancel({ notifications: REMINDER_IDS.map((id) => ({ id })) });
-// 通知のボタン（座れる／立つけど余裕／混んでる）を押したら、開いてすぐ記録する
+const cancelReminder = () => notif.cancel({ notifications: [...REMINDER_IDS, ...REMINDER_IDS_BACK].map((id) => ({ id })) });
+// 行き（必須）と帰り（任意）の通知をまとめて入れる
+const reminderList = (now = new Date()) => [
+  ...reminderNotifications(data.reminder, now, reminderText),
+  ...(data.reminder2 ? reminderNotifications(data.reminder2, now, reminderText, REMINDER_IDS_BACK) : []),
+];
+// 通知のボタン（座れる／立つけど余裕／ぎゅうぎゅう）を押したら、その場で記録して通知を消し、アプリを下げる（＝ 押したら終わり）
 if (notif) {
   notif.registerActionTypes({ types: [REPORT_ACTIONS] }).catch(() => {});
-  notif.addListener("localNotificationActionPerformed", ({ actionId }) => {
+  notif.addListener("localNotificationActionPerformed", ({ actionId, notification }) => {
     const level = Number(actionId?.match(/^l([1-5])$/)?.[1]);
     if (!level) return;
     autoRoute();
     setTime();
     record(level, LEVELS[level - 1][1]);
+    if (notification?.id) notif.cancel({ notifications: [{ id: notification.id }] }).catch(() => {});
+    setTimeout(() => window.Capacitor.Plugins.App?.minimizeApp(), 1800); // 記録できたことを一瞬見せてから
   });
 }
 function renderReminder() {
   if (!notif) return;
   $("remind").textContent = "通知をセット";
-  $("remind-note").textContent = data.reminder ? `平日 ${data.reminder} に、今日のおすすめ号車を通知します。` : "平日（祝日を除く）のこの時刻に、今日のおすすめ号車を通知します。通知のボタン（座れる・立つけど余裕・混んでる）からそのまま記録できます。";
+  $("remind-back").hidden = false;
+  $("remind-note").textContent = data.reminder
+    ? `平日 ${data.reminder}${data.reminder2 ? ` と ${data.reminder2}` : ""} に、空いてる号車を通知します。乗ったら通知のボタンを 1 回押すだけで記録できます。`
+    : "平日（祝日を除く）のこの時刻に、空いてる号車を通知します。乗ったら通知のボタン（座れる・立つけど余裕・ぎゅうぎゅう）を 1 回押すだけで記録できます。";
   $("remind-off").hidden = !data.reminder;
   if (data.reminder) $("remind-time").value = data.reminder;
+  if (data.reminder2) $("remind-time2").value = data.reminder2;
 }
 $("remind").addEventListener("click", async () => {
   const t = $("remind-time").value;
@@ -697,19 +708,22 @@ $("remind").addEventListener("click", async () => {
   if (!notif) return download(reminderIcs(t, new Date(), location.href.split("#")[0]), "text/calendar", "suiteru-reminder.ics");
   try {
     if ((await notif.requestPermissions()).display !== "granted") return toast("通知が許可されていません。端末の設定アプリで「すいてるログ」の通知を許可してください");
+    data.reminder = t;
+    data.reminder2 = $("remind-time2").value || undefined;
     await cancelReminder();
-    await notif.schedule({ notifications: reminderNotifications(t, new Date(), reminderText) });
+    await notif.schedule({ notifications: reminderList() });
   } catch {
     return toast("通知をセットできませんでした");
   }
-  data.reminder = t;
   save();
   renderReminder();
-  toast(`平日 ${t} に通知します`);
+  toast(`平日 ${t}${data.reminder2 ? ` と ${data.reminder2}` : ""} に通知します`);
 });
 $("remind-off").addEventListener("click", async () => {
   try { await cancelReminder(); } catch {}
   delete data.reminder;
+  delete data.reminder2;
+  $("remind-time2").value = "";
   save();
   renderReminder();
   toast("通知を止めました");
@@ -721,13 +735,14 @@ function reminderText(at) {
   const route = data.routes.find((r) => r.id === routeForTime(data.logs, at)) ?? currentRoute();
   if (!route?.line || (route.cars ?? 10) <= 2) return null;
   const { bests } = carsAt(route, at);
-  return { title: `${bests.map((c) => `${c.car}号車`).join("・")}が空いてそう`, body: `${route.name}・${at.getHours()}時ごろ。乗ったら下のボタンで記録` };
+  // 本文には「押したら何号車で記録されるか」を書く（違う号車の日はアプリで選び直す）
+  return { title: `${bests.map((c) => `${c.car}号車`).join("・")}が空いてそう`, body: `${route.lastCar ? `${route.lastCar}号車で記録` : "号車なしで記録"}・${route.name}（${at.getHours()}時ごろ）` };
 }
 async function refreshReminder() {
   if (!notif || !data.reminder) return;
   try {
     await cancelReminder();
-    await notif.schedule({ notifications: reminderNotifications(data.reminder, new Date(), reminderText) });
+    await notif.schedule({ notifications: reminderList() });
   } catch {}
 }
 refreshReminder();

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL, companyGroups } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL, companyGroups } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -209,7 +209,11 @@ test("reminderNotifications: next 4 weeks of working days only (no weekends or h
   assert.equal(days[0].toDateString(), new Date("2026-10-08T12:00:00").toDateString()); // 今日の 7:40 は過ぎたので明日から
   assert.ok(ns.length <= REMINDER_IDS.length && new Set(ns.map((n) => n.id)).size === ns.length);
   assert.ok(ns.every((n) => n.isExactNotification === false && n.actionTypeId === REPORT_ACTIONS.id && n.schedule.allowWhileIdle));
-  assert.deepEqual(REPORT_ACTIONS.actions.map((a) => a.id), ["l2", "l3", "l4"]);
+  // 通知のボタンは 3 つまで（Android）。いちばん押したい「ぎゅうぎゅう」を入れる
+  assert.deepEqual(REPORT_ACTIONS.actions.map((a) => [a.id, a.title]), [["l2", "座れる"], ["l3", "立つけど余裕"], ["l5", "ぎゅうぎゅう"]]);
+  // 帰りの通知は別の番号を使う（行きと上書きし合わない）
+  const back = reminderNotifications("18:30", now, undefined, REMINDER_IDS_BACK);
+  assert.ok(back.every((n) => REMINDER_IDS_BACK.includes(n.id)) && !REMINDER_IDS_BACK.some((id) => REMINDER_IDS.includes(id)));
   assert.equal(reminderNotifications("bad", now), null);
 });
 

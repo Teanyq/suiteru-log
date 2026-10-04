@@ -102,6 +102,8 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .toast-moods button { font-size: 1.2rem; min-width: 44px; min-height: 44px; padding: 2px 8px; }
 .more { margin-top: 12px; }
 .more summary, #history summary { color: var(--muted); font-size: .85rem; cursor: pointer; padding: 12px 0; }
+.remind-row { flex-wrap: wrap; align-items: center; }
+.remind-row label { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; }
 .delay-note { margin: 6px 0 0; font-size: .85rem; font-weight: 600; }
 .nicknames { margin: 6px 0 0; font-size: .85rem; font-weight: 600; }
 .tags-hint { color: var(--muted); font-size: .75rem; }

@@ -237,24 +237,25 @@ export function recParam(search) {
 // Capacitor の weekday は 1=日曜 … 7=土曜なので月〜金は 2〜6
 // 101〜130。日付ごとに入れるので最大 4 週間分の平日（＋以前の毎週くり返しの 101〜105 も同じ範囲で消せる）
 export const REMINDER_IDS = Array.from({ length: 30 }, (_, i) => 101 + i);
+export const REMINDER_IDS_BACK = Array.from({ length: 30 }, (_, i) => 131 + i); // 帰りの通知
 // 通知のボタンから直接記録する（Android は最大 3 つ）。id の数字が混雑度
-export const REPORT_ACTIONS = { id: "REPORT", actions: [{ id: "l2", title: "座れる" }, { id: "l3", title: "立つけど余裕" }, { id: "l4", title: "混んでる" }] };
+export const REPORT_ACTIONS = { id: "REPORT", actions: [{ id: "l2", title: "座れる" }, { id: "l3", title: "立つけど余裕" }, { id: "l5", title: "ぎゅうぎゅう" }] };
 
 // 平日の朝の通知。毎週くり返しだと祝日にも鳴るので、次の 4 週間の「休みでない日」を日付で入れる
 // （起動のたび・記録のたびに入れ直すので、使っていれば途切れない）。
 // textFor(日時) で { title, body }（例: 見出しに今日のおすすめ号車）。null ならいつもの文面
-export function reminderNotifications(hhmm, now, textFor = () => null) {
+export function reminderNotifications(hhmm, now, textFor = () => null, ids = REMINDER_IDS) {
   const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
   if (!m) return null;
   const out = [];
-  for (let i = 0; i <= 28 && out.length < REMINDER_IDS.length; i++) {
+  for (let i = 0; i <= 28 && out.length < ids.length; i++) {
     const at = new Date(now);
     at.setDate(at.getDate() + i);
     at.setHours(Number(m[1]), Number(m[2]), 0, 0);
     if (at <= now || at - now > 28 * 86400000 || isOffDay(at)) continue;
     const text = textFor(at);
     out.push({
-      id: REMINDER_IDS[out.length],
+      id: ids[out.length],
       title: text?.title ?? "今日の電車の混み具合は？",
       body: text?.body ?? "すいてるログでワンタップ記録",
       schedule: { at, allowWhileIdle: true },
