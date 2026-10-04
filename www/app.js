@@ -363,7 +363,7 @@ function renderCars() {
   const parts = [sharedN ? `みんなの報告 ${sharedN} 件` : "", reports ? `あなたの記録 ${reports} 件` : ""].filter(Boolean);
   const lineTotal = data.share && data.rank?.key === `${route.line?.c}|${route.line?.l}` ? data.rank.total : null;
   const basis = best.stars === 1
-    ? `まだ報告が少ないので、一般的な傾向（端の号車ほど空きやすい）からの予想です${lineTotal != null ? `（${route.line.l}のみんなの報告は30日で${lineTotal}件。報告が増えるほど当たります）` : ""}`
+    ? `まだ報告が少ないので、一般的な傾向（端の号車ほど空きやすい）からの予想です${lineTotal == null ? "" : lineTotal === 0 ? `（${route.line.l}ではまだ誰も報告していません。あなたが最初の報告者になれます）` : `（${route.line.l}のみんなの報告は30日で${lineTotal}件。報告が増えるほど当たります）`}`
     : `${parts.join("と")}から出しています`;
   const dir = dirOf(route);
   $("car-reco").replaceChildren(
@@ -440,7 +440,9 @@ function record(level, label) {
   const check = pred ? `アプリの予想「${LEVELS[pred - 1][1]}」→ ${predHit(log) ? "的中！+5pt" : level < pred ? "予想より空いてた！" : "予想より混んでた…"}
 ` : "";
   const mates = car && sharedHitOf(route, d)?.riders?.find((r) => r.car === car)?.n;
-  const cheer = (mates ? `いま${car}号車には仲間が${mates}人。` : "") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length, hour: d.getHours(), month: d.getMonth() + 1 });
+  // その号車に今月何回乗ったか（記録から数えるだけ。入力なしの小さな発見）
+  const ym = log.t.slice(0, 7), times = car ? data.logs.filter((l) => l.route === log.route && l.car === car && l.t.startsWith(ym)).length : 0;
+  const cheer = (mates ? `いま${car}号車には仲間が${mates}人。` : "") + (times >= 3 ? `${car}号車は今月${times}回目。${times >= 10 ? "もはや指定席" : "常連です"}。` : "") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length, hour: d.getHours(), month: d.getMonth() + 1 });
   // 記録のあとに気分スタンプ（任意）。押せば報告に添えて、号車のあだ名に使う
   const moods = el("span", { className: "toast-moods" }, "いまの気分は？", ...Object.entries(MOODS).map(([key, [emoji, word]]) =>
     el("button", { type: "button", textContent: emoji, ariaLabel: word, onclick: () => {
