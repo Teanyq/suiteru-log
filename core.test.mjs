@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, MONTH_GOAL, badgesOf } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, MONTH_GOAL, badgesOf, HOLIDAYS_UNTIL } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -493,4 +493,17 @@ test("monthly goal: every month with MONTH_GOAL rides earns that season's badge 
   const rides = (ym, n) => Array.from({ length: n }, (_, i) => ({ route: "r1", t: `${ym}-${String(1 + (i % 28)).padStart(2, "0")}T08:00:00`, level: 3 }));
   const logs = [...rides("2026-09", MONTH_GOAL), ...rides("2026-10", MONTH_GOAL - 1), ...rides("2026-12", MONTH_GOAL + 5)];
   assert.deepEqual(badgesOf(logs), [{ ym: "2026-09", emoji: "🎑" }, { ym: "2026-12", emoji: "🎄" }]);
+});
+
+test("late-night rides belong to the previous service day (Friday's last train is a weekday)", () => {
+  assert.equal(isOffDay(new Date("2026-10-10T00:30:00")), false); // 土曜 0:30 = 金曜の終電
+  assert.equal(isOffDay(new Date("2026-10-12T01:00:00")), true);  // 月曜(祝) 1:00 = 日曜の終電
+  assert.equal(isOffDay(new Date("2026-10-10T05:00:00")), true);  // 土曜の始発以降は休日
+  const route = { id: "r1", name: "x", line: { c: "C", l: "L" }, dir: "D" };
+  assert.equal(reportPayload("d", route, { t: "2026-10-10T00:30:00", level: 5, car: 3 }).daytype, "wd");
+});
+
+test("the holiday list still covers next year (update core.js HOLIDAYS from the Cabinet Office CSV every February)", () => {
+  assert.ok(HOLIDAYS_UNTIL >= new Date().getFullYear() + (new Date().getMonth() >= 10 ? 1 : 0),
+    `祝日の一覧が ${HOLIDAYS_UNTIL} 年までしかない`);
 });

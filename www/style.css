@@ -158,6 +158,8 @@ details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; padd
 .car-cell b { font-size: .95rem; line-height: 1.1; }
 .car-cell small { font-size: .55rem; letter-spacing: -1px; }
 .car-cell.guess { opacity: .55; outline: 2px dashed var(--line); outline-offset: -2px; }
+/* 暗い背景では半透明だと号車番号が読めないので、点線の枠だけで「推定」を表す */
+@media (prefers-color-scheme: dark) { .car-cell.guess { opacity: .9; } }
 .car-cell.best { box-shadow: 0 0 0 3px var(--text); }
 .car-pick-wrap { margin: 0 0 10px; }
 .car-pick-label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
