@@ -513,3 +513,11 @@ test("the holiday list still covers next year (update core.js HOLIDAYS from the 
   assert.ok(HOLIDAYS_UNTIL >= new Date().getFullYear() + (new Date().getMonth() >= 10 ? 1 : 0),
     `祝日の一覧が ${HOLIDAYS_UNTIL} 年までしかない`);
 });
+
+test("cheerOf has enough variety not to repeat for weeks, and fits the hour and season", () => {
+  const plain = (n, extra = {}) => cheerOf({ level: 3, streakDays: 1, dow: 3, n, hour: 8, month: 5, ...extra });
+  assert.ok(new Set(Array.from({ length: 60 }, (_, n) => plain(n))).size >= 20, "ふつうの日の言葉が 20 種類以上");
+  assert.ok(new Set(Array.from({ length: 8 }, (_, n) => cheerOf({ level: 5, streakDays: 1, dow: 3, n }))).size >= 3, "ぎゅうぎゅうの日も毎回同じではない");
+  assert.ok(Array.from({ length: 12 }, (_, n) => plain(n, { hour: 6 })).some((t) => /早/.test(t)), "早朝の言葉");
+  assert.ok(Array.from({ length: 12 }, (_, n) => plain(n, { month: 6 })).some((t) => /梅雨|雨/.test(t)), "梅雨の言葉");
+});

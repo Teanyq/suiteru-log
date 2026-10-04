@@ -439,7 +439,7 @@ function record(level, label) {
   const check = pred ? `アプリの予想「${LEVELS[pred - 1][1]}」→ ${predHit(log) ? "的中！+5pt" : level < pred ? "予想より空いてた！" : "予想より混んでた…"}
 ` : "";
   const mates = car && sharedHitOf(route, d)?.riders?.find((r) => r.car === car)?.n;
-  const cheer = (mates ? `いま${car}号車には仲間が${mates}人。` : "") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length });
+  const cheer = (mates ? `いま${car}号車には仲間が${mates}人。` : "") + cheerOf({ level, streakDays: streak(data.logs, Date.now()).days, dow: d.getDay(), n: data.logs.length, hour: d.getHours(), month: d.getMonth() + 1 });
   // 記録のあとに気分スタンプ（任意）。押せば報告に添えて、号車のあだ名に使う
   const moods = el("span", { className: "toast-moods" }, "いまの気分は？", ...Object.entries(MOODS).map(([key, [emoji, word]]) =>
     el("button", { type: "button", textContent: emoji, ariaLabel: word, onclick: () => {
