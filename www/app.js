@@ -90,8 +90,19 @@ function toast(msg, undo, extra) {
   toastTimer = setTimeout(() => $("toast").replaceChildren(), undo ? 8000 : 4000);
 }
 
+// 1 タップの記録（通知のボタン・アイコン長押し）の締め: 気分スタンプは選べないので報告は待たずにすぐ送り、
+// 送り終わる（最大 4 秒）のを待ってからアプリを下げる。裏に回るとタイマーが止まり、次に開くまで送られないため
+async function finishQuick() {
+  await Promise.all([new Promise((r) => setTimeout(r, 1800)), Promise.race([flushOutbox(), new Promise((r) => setTimeout(r, 4000))])]);
+  window.Capacitor?.Plugins?.App?.minimizeApp();
+}
+
+// 記録 → まだ送っていない報告（取り消したら、送信待ちからも外す）
+const pendingReport = new WeakMap();
 function removeLog(log) {
   data.logs = data.logs.filter((l) => l !== log);
+  const p = pendingReport.get(log);
+  if (p) data.outbox = data.outbox.filter((x) => x !== p); // 取り消しボタン（8 秒）は送信（10 秒後）より先なので、必ず送る前に外れる
   save();
   render();
 }
@@ -512,7 +523,7 @@ function record(level, label) {
   const gained = pointsOf(data.logs) - before;
   const payload = data.share && reportPayload(data.device, route, log);
   // 気分スタンプを押す時間を待ってから送る（押したらすぐ送る。アプリを閉じても次回送る）
-  if (payload) { data.outbox.push(payload); setTimeout(flushOutbox, 10000); }
+  if (payload) { data.outbox.push(payload); pendingReport.set(log, payload); setTimeout(flushOutbox, 10000); }
   // 遅延の印は平均には入れないが、「いま遅れているらしい」として同じ路線・方面の人に伝える
   if (data.share && log.tags?.includes("delay") && route?.line && dirOf(route)) {
     data.outbox.push({ kind: "delay", device: data.device, line: route.line, dir: dirOf(route) });
@@ -785,7 +796,7 @@ if (notif) {
     setTime();
     record(level, LEVELS[level - 1][1]);
     if (notification?.id) notif.cancel({ notifications: [{ id: notification.id }] }).catch(() => {});
-    setTimeout(() => window.Capacitor.Plugins.App?.minimizeApp(), 1800); // 記録できたことを一瞬見せてから
+    finishQuick();
   });
 }
 function renderReminder() {
@@ -899,7 +910,7 @@ if (isNativeApp && window.Capacitor.Plugins.App) {
     autoRoute();
     setTime();
     record(level, LEVELS[level - 1][1]);
-    setTimeout(() => AppPlugin.minimizeApp(), 1800); // 記録できたことを一瞬見せてから
+    finishQuick();
   };
   AppPlugin.getLaunchUrl().then((r) => quickFromUrl(r?.url)).catch(() => {});
   AppPlugin.addListener("appUrlOpen", ({ url }) => quickFromUrl(url));
