@@ -1,4 +1,4 @@
-import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companyGroups, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf, journeyOf, bingoOf, nearestStation, stampsOf } from "./core.js";
+import { aggregate, recommend, slotLabel, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, slotOf, isWeekend, isOffDay, TAGS, recent, needsBackup, MIN_TOTAL, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companyGroups, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessStats, predHit, MOODS, nicknameOf, monthRecap, monthGoal, badgesOf, journeyOf, bingoOf, nearestStation, stampsOf, rewardedLogs } from "./core.js";
 import { createStore } from "./store.js";
 
 const KEY = "suiteru.v1";
@@ -346,7 +346,7 @@ $("use-loc").addEventListener("change", async (e) => {
 
 // 通勤すごろく: 記録 1 回で本物の駅を 1 つ進む（最初の路線は登録した路線・方面）
 const tripStart = () => data.routes.find((r) => r.line && dirOf(r));
-const tripNow = (n = data.logs.length) => {
+const tripNow = (n = rewardedLogs(data.logs).length) => {
   if (!LINES) return null;
   // 登録順に、駅データのある最初の路線から出発（一覧にない路線は飛ばす）
   for (const r of data.routes.filter((x) => x.line && dirOf(x))) {
@@ -365,7 +365,7 @@ function renderTrip() {
     el("p", { className: "trip-line", textContent: `🚃 ${lineLabel(j.line)}（${j.terminal}方面）` }),
     el("p", { className: "trip-at" }, "いま ", el("strong", { textContent: j.at }), `　次は ${j.next}`),
     el("div", { className: "trip-bar", role: "img", ariaLabel: `${j.terminal}まであと${j.toEnd}駅` }, el("i", { style: `width:${Math.round(100 * (j.steps - j.toEnd) / j.steps)}%` })),
-    el("p", { className: "note", textContent: `${j.terminal}まであと${j.toEnd}駅で路線制覇。1回記録するごとに1駅進みます。これまで${j.passed}駅・制覇${j.done.length}路線${j.done.length ? `（${j.done.slice(-3).map(lineLabel).join("・")}）` : ""}` }),
+    el("p", { className: "note", textContent: `${j.terminal}まであと${j.toEnd}駅で路線制覇。1回記録するごとに1駅進みます（15分に1回・1日4回まで）。これまで${j.passed}駅・制覇${j.done.length}路線${j.done.length ? `（${j.done.slice(-3).map(lineLabel).join("・")}）` : ""}` }),
     stampLine(),
   );
 }
@@ -535,7 +535,7 @@ function record(level, label) {
   setTags([]); // 印は1回ごと
   refreshReminder();
   render();
-  const check = pred ? `アプリの予想「${LEVELS[pred - 1][1]}」→ ${predHit(log) ? "的中！+5pt" : level < pred ? "予想より空いてた！" : "予想より混んでた…"}
+  const check = pred ? `アプリの予想「${LEVELS[pred - 1][1]}」→ ${predHit(log) ? (gained > 0 ? "的中！+5pt" : "的中！") : level < pred ? "予想より空いてた！" : "予想より混んでた…"}
 ` : "";
   const mates = car && sharedHitOf(route, d)?.riders?.find((r) => r.car === car)?.n;
   // その号車に今月何回乗ったか（記録から数えるだけ。入力なしの小さな発見）
@@ -544,7 +544,8 @@ function record(level, label) {
   const tripAfter = tripNow(), bingoAfter = bingoOf(data.logs, d);
   const opened = bingoAfter.cells.filter((c, i) => c.hit && !bingoBefore.cells[i].hit).map((c) => `「${c.label}」`);
   const fun = [
-    tripAfter ? (tripAfter.done.length > (tripBefore?.done.length ?? 0) ? `🎉 ${lineLabel(tripAfter.done.at(-1))} 制覇！次は${lineLabel(tripAfter.line)}へ` : `すごろく：${tripAfter.at}に到着`) : "",
+    !tripAfter ? "" : tripAfter.passed === tripBefore?.passed ? "この15分はもう記録済み（ごほうびは15分に1回・1日4回まで）"
+      : tripAfter.done.length > (tripBefore?.done.length ?? 0) ? `🎉 ${lineLabel(tripAfter.done.at(-1))} 制覇！次は${lineLabel(tripAfter.line)}へ` : `すごろく：${tripAfter.at}に到着`,
     bingoAfter.lines > bingoBefore.lines ? `🎯 ${bingoAfter.title} +${(bingoAfter.lines - bingoBefore.lines) * 20}pt` : opened.length ? `ビンゴの${opened.join("")}が開いた` : "",
   ].filter(Boolean).join("　");
   const cheer = (fun ? `${fun}

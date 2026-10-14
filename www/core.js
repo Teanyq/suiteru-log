@@ -375,7 +375,7 @@ export function carEstimates({ route, cars, dow, slot, now, logs, stairsCars = [
 export function pointsOf(logs) {
   let pts = 0;
   // 号車つき +5、ぎゅうぎゅう側（4〜5）は「戦士ボーナス」+10（つらい日ほど報われる）
-  for (const l of logs) pts += 10 + (l.car ? 5 : 0) + (l.level >= 4 ? 10 : 0) + (predHit(l) ? 5 : 0);
+  for (const l of rewardedLogs(logs)) pts += 10 + (l.car ? 5 : 0) + (l.level >= 4 ? 10 : 0) + (predHit(l) ? 5 : 0);
   pts += 10 * stampsOf(logs).length; // 初めての駅のスタンプ
   // 平日の連続記録 5 日ごとに +50（土日はまたいでも途切れない）
   const days = [...new Set(logs.map((l) => l.t.slice(0, 10)))]
@@ -562,7 +562,8 @@ export const BINGO_POOL = [
 ];
 const BINGO_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
 export const BINGO_TITLES = ["", "ビンゴ！", "ダブルビンゴ！", "トリプルビンゴ！", "4列ビンゴ！", "5列ビンゴ！", "6列ビンゴ！", "7列ビンゴ！", "パーフェクト！"];
-export function bingoOf(logs, now) {
+export function bingoOf(allLogs, now) {
+  const logs = rewardedLogs(allLogs); // 連打ではマスを開けない
   const { from, list } = weekLogs(logs, now);
   const past = logs.filter((l) => l.t < `${from}T00:00:00`);
   const h = habitsOf(past);
@@ -634,4 +635,18 @@ export function stampsOf(logs) {
   const seen = new Set();
   for (const l of logs) if (l.station) seen.add(l.station);
   return [...seen];
+}
+
+// ごほうび（ポイント・すごろく）に数える記録: 15 分枠ごとに 1 回・1 日 4 回まで（通勤の往復＋乗り換え程度）。
+// 記録そのものは何回でもできるが、連打しても得をしない（遊びのためにデータをごまかす動機を作らない）
+export function rewardedLogs(logs) {
+  const slots = new Set(), perDay = new Map(), out = [];
+  for (const l of [...logs].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))) {
+    const day = l.t.slice(0, 10), key = `${day}-${slotOf(l.t)}`;
+    if (slots.has(key) || (perDay.get(day) ?? 0) >= 4) continue;
+    slots.add(key);
+    perDay.set(day, (perDay.get(day) ?? 0) + 1);
+    out.push(l);
+  }
+  return out;
 }

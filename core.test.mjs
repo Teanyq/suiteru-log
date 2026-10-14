@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL, companyGroups, journeyOf, bingoOf, BINGO_POOL, bingoBonus, nearestStation, stampsOf } from "./www/core.js";
+import { slotOf, slotLabel, aggregate, recommend, parseBackup, reminderIcs, streak, forecast, routeForTime, resolveTime, recent, needsBackup, recParam, reminderNotifications, REMINDER_IDS, REMINDER_IDS_BACK, REPORT_ACTIONS, REGIONS, companiesIn, linesOf, directionsOf, companyLabel, MEMO_TAGS, memoLabel, lineLabel, carPrior, carEstimates, pointsOf, titleOf, reportPayload, dirOf, cheerOf, guessHit, guessStats, predHit, MOODS, nicknameOf, monthRecap, isOffDay, monthGoal, badgesOf, HOLIDAYS_UNTIL, companyGroups, journeyOf, bingoOf, BINGO_POOL, bingoBonus, nearestStation, stampsOf, rewardedLogs } from "./www/core.js";
 
 // 2026-10-01 と 2026-10-08 は木曜(4)
 const log = (t, level, route = "r1") => ({ route, t, level });
@@ -341,7 +341,7 @@ test("pointsOf: 10 per record, +5 with a car, +50 for every 5 consecutive weekda
   const base = (logs) => pointsOf(logs) - bingoBonus(logs); // ビンゴのごほうびは別のテスト
   const rec = (day, car) => ({ route: "r1", t: `${day}T07:40:00`, level: 3, ...(car ? { car } : {}) });
   assert.equal(base([]), 0);
-  assert.equal(base([rec("2026-09-28"), rec("2026-09-28", 3)]), 25);
+  assert.equal(base([rec("2026-09-28"), { ...rec("2026-09-28", 3), t: "2026-09-28T18:40:00" }]), 25); // 朝と夕方（同じ 15 分枠の 2 回目はごほうびなし）
   // 月〜金（9/28〜10/2）の 5 連続 = 5×10 + 50
   const week = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"].map((d) => rec(d));
   assert.equal(base(week), 100);
@@ -626,4 +626,15 @@ test("stamps: each station counts once, and a new station is +10pt", () => {
   const d = parseBackup(JSON.stringify({ routes: [{ id: "r1", name: "A" }], logs: [rec("2026-10-05T08:00:00", "渋谷"), rec("2026-10-05T09:00:00", "x".repeat(30))] }));
   assert.equal(d.logs[0].station, "渋谷");
   assert.equal(d.logs[1].station, undefined);
+});
+
+test("rewardedLogs: rewards count one record per 15-minute slot and at most 4 per day (tapping repeatedly gains nothing)", () => {
+  const at = (t, car = 1) => ({ route: "r1", t, level: 3, car });
+  const spam = Array.from({ length: 20 }, (_, i) => at(`2026-10-05T08:${String(10 + i).padStart(2, "0")}:00`, 1 + (i % 8)));
+  assert.equal(rewardedLogs(spam).length, 2); // 8:10〜8:14 の枠と 8:15〜8:29 の枠
+  const day = ["06:00", "08:00", "12:00", "18:00", "21:00", "23:00"].map((h) => at(`2026-10-05T${h}:00`));
+  assert.equal(rewardedLogs(day).length, 4); // 1 日 4 回まで
+  // ポイントは数える記録だけ（連打しても 2 回分）
+  const once = rewardedLogs(spam);
+  assert.equal(pointsOf(spam) - bingoBonus(spam), pointsOf(once) - bingoBonus(once));
 });
