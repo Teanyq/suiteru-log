@@ -116,3 +116,9 @@ export function parseDelay(body) {
   const r = parseReport({ ...body, daytype: "wd", slot: 0, car: 1, level: 1 });
   return r && { device: r.device, line: r.line, dir: r.dir };
 }
+
+// 何分前の記録か（圏外や 1 タップで送信が遅れたとき用）。0〜1440 分。なければ 0（いま）、おかしな値は null（受けない）
+export function agoMinutes(body) {
+  if (body?.ago === undefined) return 0;
+  return Number.isInteger(body.ago) && body.ago >= 0 && body.ago <= 1440 ? body.ago : null;
+}

@@ -1,5 +1,5 @@
 // Cloudflare Worker: 匿名の号車混雑報告の受付と集計（docs/SPEC-v2.md）
-import { parseReport, aggregate, moodsOf, dayStartJst, RATE_LIMIT_MS, WINDOW_DAYS, HELPED_DAYS, DAILY_CAP, rankingOf, parseDelay, DELAY_WINDOW_MS } from "./api.mjs";
+import { parseReport, aggregate, moodsOf, dayStartJst, RATE_LIMIT_MS, WINDOW_DAYS, HELPED_DAYS, DAILY_CAP, rankingOf, parseDelay, DELAY_WINDOW_MS, agoMinutes } from "./api.mjs";
 
 // アプリ（Android: https://localhost / iOS: capacitor://localhost）と Web 版からだけ受け付ける
 const ORIGINS = new Set(["https://teanyq.github.io", "https://localhost", "capacitor://localhost", "http://localhost:5180"]);
@@ -25,16 +25,16 @@ export default {
       if (Number(req.headers.get("Content-Length") ?? 0) > MAX_BODY) return json({ ok: false }, 413, cors);
       let body;
       try { body = JSON.parse((await req.text()).slice(0, MAX_BODY)); } catch { return json({ ok: false }, 400, cors); }
-      const r = parseReport(body);
-      if (!r) return json({ ok: false }, 400, cors);
-      const now = Date.now();
+      const r = parseReport(body), ago = agoMinutes(body);
+      if (!r || ago === null) return json({ ok: false }, 400, cors);
+      const now = Date.now(), at = now - ago * 60000; // 記録した時刻（遅れて届いても記録した時刻で数える）
       const recent = await env.DB.prepare("SELECT 1 FROM reports WHERE device = ? AND line = ? AND dir = ? AND car = ? AND created_at > ? LIMIT 1")
         .bind(r.device, r.line, r.dir, r.car, now - RATE_LIMIT_MS).first();
       if (recent) return json({ ok: false, reason: "too_soon" }, 429, cors);
       const today = await env.DB.prepare("SELECT COUNT(*) AS n FROM reports WHERE device = ? AND created_at >= ?").bind(r.device, dayStartJst(now)).first();
       if (today.n >= DAILY_CAP) return json({ ok: false, reason: "daily_cap" }, 429, cors);
       await env.DB.prepare("INSERT INTO reports (device, line, dir, daytype, slot, car, level, mood, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(r.device, r.line, r.dir, r.daytype, r.slot, r.car, r.level, r.mood, now).run();
+        .bind(r.device, r.line, r.dir, r.daytype, r.slot, r.car, r.level, r.mood, at).run();
       return json({ ok: true }, 201, cors);
     }
 
@@ -44,13 +44,13 @@ export default {
       if (Number(req.headers.get("Content-Length") ?? 0) > MAX_BODY) return json({ ok: false }, 413, cors);
       let body;
       try { body = JSON.parse((await req.text()).slice(0, MAX_BODY)); } catch { return json({ ok: false }, 400, cors); }
-      const r = parseDelay(body);
-      if (!r) return json({ ok: false }, 400, cors);
-      const now = Date.now();
+      const r = parseDelay(body), ago = agoMinutes(body);
+      if (!r || ago === null) return json({ ok: false }, 400, cors);
+      const now = Date.now(), at = now - ago * 60000;
       const recent = await env.DB.prepare("SELECT 1 FROM delays WHERE device = ? AND line = ? AND dir = ? AND created_at > ? LIMIT 1").bind(r.device, r.line, r.dir, now - 10 * 60000).first();
       if (recent) return json({ ok: false, reason: "too_soon" }, 429, cors);
       await env.DB.batch([
-        env.DB.prepare("INSERT INTO delays (device, line, dir, created_at) VALUES (?, ?, ?, ?)").bind(r.device, r.line, r.dir, now),
+        env.DB.prepare("INSERT INTO delays (device, line, dir, created_at) VALUES (?, ?, ?, ?)").bind(r.device, r.line, r.dir, at),
         env.DB.prepare("DELETE FROM delays WHERE created_at < ?").bind(now - 86400000), // 1 日で消す（今の遅延にしか使わない）
       ]);
       return json({ ok: true }, 201, cors);

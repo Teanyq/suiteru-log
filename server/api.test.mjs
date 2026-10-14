@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseReport, aggregate, moodsOf, dayStartJst, DAILY_CAP, nickOf, rankingOf, parseDelay } from "./api.mjs";
+import { parseReport, aggregate, moodsOf, dayStartJst, DAILY_CAP, nickOf, rankingOf, parseDelay, agoMinutes } from "./api.mjs";
 
 const ok = { device: "d-123", line: { c: "東急電鉄", l: "田園都市線" }, dir: "渋谷", daytype: "wd", slot: 30, car: 5, level: 4 };
 
@@ -94,4 +94,10 @@ test("parseDelay accepts just device, line and direction", () => {
   assert.deepEqual(parseDelay({ device: "d1", line: { c: "東急電鉄", l: "田園都市線" }, dir: "渋谷" }), { device: "d1", line: "東急電鉄|田園都市線", dir: "渋谷" });
   for (const bad of [null, {}, { device: "d1", line: { c: "a|b", l: "x" }, dir: "y" }, { device: "", line: { c: "a", l: "b" }, dir: "c" }])
     assert.equal(parseDelay(bad), null);
+});
+
+test("agoMinutes: how long ago it was recorded (0-1440 min); anything else means 'now'", () => {
+  assert.equal(agoMinutes({ ago: 85 }), 85);
+  assert.equal(agoMinutes({}), 0);
+  for (const bad of [-1, 1441, 2.5, "10", null]) assert.equal(agoMinutes({ ago: bad }), null, String(bad));
 });

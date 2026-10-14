@@ -246,7 +246,8 @@ async function flushOutbox() {
   for (const p of pending) {
     try {
       // 遅延の報告（kind: "delay"）は別の受付へ。どちらも送る中身から kind は外す
-      const { kind, ...body } = p;
+      const { kind, at, ...body } = p;
+      if (at) body.ago = Math.max(0, Math.round((Date.now() - at) / 60000)); // 何分前の記録か（24 時間より前はサーバーが受けない）
       const res = await fetch(`${API}/v1/${kind === "delay" ? "delays" : "reports"}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       // サーバー側の一時的な不調と、回線全体の混雑（同じ IP からの上限: too_many）は後で送り直す。
       // 不正な報告（400）と同じ号車の連投（too_soon）は捨てる
@@ -525,10 +526,10 @@ function record(level, label) {
   const gained = pointsOf(data.logs) - before;
   const payload = data.share && reportPayload(data.device, route, log);
   // 気分スタンプを押す時間を待ってから送る（押したらすぐ送る。アプリを閉じても次回送る）
-  if (payload) { data.outbox.push(payload); pendingReport.set(log, payload); setTimeout(flushOutbox, 10000); }
+  if (payload) { payload.at = d.getTime(); data.outbox.push(payload); pendingReport.set(log, payload); setTimeout(flushOutbox, 10000); }
   // 遅延の印は平均には入れないが、「いま遅れているらしい」として同じ路線・方面の人に伝える
   if (data.share && log.tags?.includes("delay") && route?.line && dirOf(route)) {
-    data.outbox.push({ kind: "delay", device: data.device, line: route.line, dir: dirOf(route) });
+    data.outbox.push({ kind: "delay", device: data.device, line: route.line, dir: dirOf(route), at: d.getTime() });
     flushOutbox();
   }
   save();
