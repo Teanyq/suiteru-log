@@ -360,7 +360,7 @@ const tripNow = (n = rewardedLogs(data.logs).length) => {
 };
 function renderTrip() {
   if (!tripStart()) return ($("trip-sec").hidden = true);
-  if (!LINES) return void loadLines().then(renderTrip).catch(() => {});
+  if (!LINES) return void loadLines().then(render).catch(() => {}); // 駅データが来たら全体を描き直す（すごろく・コレクション）
   const j = tripNow();
   $("trip-sec").hidden = !j;
   if (!j) return;
@@ -378,6 +378,27 @@ function stampLine() {
   if (!data.useLocation && !st.length)
     return el("button", { type: "button", className: "link-btn", textContent: "📍 駅スタンプを集める（位置情報をオン）", onclick: () => { $("use-loc").checked = true; $("use-loc").dispatchEvent(new Event("change")); } });
   return el("p", { className: "note", textContent: `📍 駅スタンプ ${st.length}個${st.length ? `（最近: ${st.slice(-3).reverse().join("・")}）` : "。記録した駅のスタンプが集まります（初めての駅は +10pt）"}` });
+}
+
+// コレクション: 集めたもの（制覇した路線・駅スタンプ・季節バッジ）を並べて眺める。集める遊びは眺めるのが楽しさの半分
+function renderCollection() {
+  const j = tripNow(), stamps = stampsOf(data.logs), badges = badgesOf(data.logs);
+  const total = (j?.done.length ?? 0) + stamps.length + badges.length;
+  $("coll-sec").hidden = !total;
+  if (!total) return;
+  $("h-coll").textContent = `コレクション（制覇 ${j?.done.length ?? 0} 路線・駅スタンプ ${stamps.length}・バッジ ${badges.length}）`;
+  const have = new Set(stamps);
+  // 駅スタンプは、登録した路線ごとに「◯/全◯駅」（次に行きたい駅ができるように）
+  const myLines = LINES ? data.routes.filter((r) => r.line).map((r) => LINES.find((l) => l.c === r.line.c && l.l === r.line.l)).filter(Boolean) : [];
+  const uniq = [...new Map(myLines.map((l) => [`${l.c}|${l.l}`, l])).values()];
+  const onMine = new Set(uniq.flatMap((l) => l.s));
+  const block = (title, items) => el("div", { className: "coll-block" }, el("p", { className: "coll-title", textContent: title }), el("p", { className: "note", textContent: items || "まだありません" }));
+  $("coll").replaceChildren(
+    block("🚃 制覇した路線", (j?.done ?? []).map(lineLabel).join("・")),
+    ...uniq.map((l) => block(`📍 ${lineLabel(l)} ${l.s.filter((x) => have.has(x)).length}/${l.s.length}駅`, l.s.filter((x) => have.has(x)).join("・"))),
+    stamps.some((x) => !onMine.has(x)) ? block("📍 そのほかの駅", stamps.filter((x) => !onMine.has(x)).join("・")) : "",
+    block("🏅 季節のバッジ", badges.map((b) => `${b.emoji}${b.ym.slice(0, 4)}年${Number(b.ym.slice(5))}月`).join("　")),
+  );
 }
 
 // 今週のビンゴ: いつもの記録で自然にマスが開く。毎週月曜に新しいカード
@@ -525,7 +546,7 @@ function renderPoints() {
     g.n ? el("small", { textContent: ` 予想的中 ${g.hit}/${g.n}` }) : "");
 }
 
-const render = () => { if (timeAuto) setTime(); renderRoutes(); renderShare(); renderPoints(); renderTrip(); renderBingo(); renderRecap(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
+const render = () => { if (timeAuto) setTime(); renderRoutes(); renderShare(); renderPoints(); renderTrip(); renderCollection(); renderBingo(); renderRecap(); renderBackup(); renderStreak(); renderCars(); renderCarPick(); renderForecast(); renderRecommend(); renderHeat(); renderHistory(); renderMemos(); };
 
 // 記録できたことを画面を見ずに分かるよう軽く振動。アプリ版は Haptics（iOS の WebView には vibrate が無い）、
 // Web 版は navigator.vibrate（Android の Chrome のみ。iPhone の Safari では何もしない）
