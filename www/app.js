@@ -478,6 +478,17 @@ function usualMorning(route) {
     .filter((m) => m >= 300 && m < 660).sort((a, b) => a - b);
   return mins.length >= 3 ? mins[mins.length >> 1] : 480;
 }
+// いつもの号車（その路線でいちばん多く乗った号車、5 回以上）が混みそうな日だけ強めに知らせる。空いていれば「そのままで大丈夫」
+function usualCarNote(route, est, bests) {
+  const cars = {};
+  for (const l of data.logs) if (l.route === route.id && l.car) cars[l.car] = (cars[l.car] ?? 0) + 1;
+  const [car, n] = Object.entries(cars).sort((a, b) => b[1] - a[1])[0] ?? [];
+  const mine = n >= 5 && est.find((c) => c.car === Number(car));
+  if (!mine || (route.cars ?? 10) <= 2) return "";
+  if (bests.includes(mine)) return el("p", { className: "usual-note", textContent: `👍 いつもの${car}号車で大丈夫そう` });
+  if (mine.value - bests[0].value < 1) return "";
+  return el("p", { className: "usual-note warn", textContent: `いつもの${car}号車は混みそう。今日は${bests.map((c) => `${c.car}号車`).join("・")}へ` });
+}
 function renderCars() {
   const route = currentRoute();
   if (!route) return;
@@ -515,6 +526,7 @@ function renderCars() {
       // 混んでいる号車は斜線の模様も付ける（色が見分けにくい人にも伝わるように）
       ...est.map((c) => el("div", { className: `car-cell${c.stars === 1 ? " guess" : ""}${bests.includes(c) ? " best" : ""}${c.value >= 3.5 ? " crowded" : ""}`, style: `background-color:${color(c.value)}` },
         el("b", { textContent: c.car, className: c.car >= 10 ? "wide" : "" }), el("small", { textContent: "★".repeat(c.stars) })))),
+    usualCarNote(route, est, bests),
     el("p", { className: "legend" },
       el("span", {}, el("i", { style: "background:var(--l1)" }), "空いてる"),
       el("span", {}, el("i", { className: "crowded", style: "background-color:var(--l5)" }), "混んでる（斜線）"),
