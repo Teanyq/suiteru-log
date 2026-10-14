@@ -571,6 +571,15 @@ ${check}${cheer}`, () => removeLog(log), moods);
     render();
     if (first) $("toast").append(el("span", { className: "stamp-msg", textContent: `📍 ${st.station}駅のスタンプをゲット！+10pt（${stampsOf(data.logs).length}個目）` }));
   });
+  // 1 タップの記録（アプリをすぐ下げる）では画面のメッセージが読めないので、結果を通知で返すための中身
+  return { title: `${car ? `${car}号車 ` : ""}「${label}」を記録 +${gained}pt`, body: cheer }; // cheer = すごろく・ビンゴ＋労いの一言
+}
+
+// 1 タップで記録した結果を、音なし・ボタンなしの通知 1 本で返す（同じ番号で上書き）
+const RESULT_ID = 900;
+function notifyResult(r) {
+  if (!notif || !r) return;
+  notif.schedule({ notifications: [{ id: RESULT_ID, title: r.title, body: r.body, isExactNotification: false, silent: true }] }).catch(() => {});
 }
 
 const activeTags = new Set();
@@ -795,7 +804,7 @@ if (notif) {
     if (!level) return;
     autoRoute();
     setTime();
-    record(level, LEVELS[level - 1][1]);
+    notifyResult(record(level, LEVELS[level - 1][1]));
     if (notification?.id) notif.cancel({ notifications: [{ id: notification.id }] }).catch(() => {});
     finishQuick();
   });
@@ -910,7 +919,7 @@ if (isNativeApp && window.Capacitor.Plugins.App) {
     handled = url + Math.floor(Date.now() / 60000);
     autoRoute();
     setTime();
-    record(level, LEVELS[level - 1][1]);
+    notifyResult(record(level, LEVELS[level - 1][1]));
     finishQuick();
   };
   AppPlugin.getLaunchUrl().then((r) => quickFromUrl(r?.url)).catch(() => {});
