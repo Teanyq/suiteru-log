@@ -321,16 +321,18 @@ async function findStation(prefer) {
   return pos && LINES ? nearestStation(LINES, pos[0], pos[1], prefer) : null;
 }
 // アプリを開いた時: 今いる駅を調べ、その駅を通る登録済みの路線に切り替える（今の路線が通っていなければ）
+// 路線は「位置で路線（どの線か）」→「時間帯で方面（上りか下りか）」の順に決める（両方が別々に切り替えて 2 回知らせないように）
 async function locateOnOpen() {
   const st = await findStation(currentRoute()?.line);
-  if (!st) return;
+  if (!st) return autoRoute(); // 駅が分からない（オフ・圏外・駅から遠い）ときは今まで通り時間帯で
   here = { ...st, at: Date.now() };
   const passes = (r) => r.line && LINES.some((l) => l.c === r.line.c && l.l === r.line.l && l.s.includes(st.station));
-  const cur = currentRoute();
-  if (cur && !passes(cur)) {
-    const other = data.routes.find(passes);
-    if (other) { data.current = other.id; save(); toast(`${st.station}駅の近くなので「${other.name}」にしました`); }
-  }
+  const cands = data.routes.filter(passes);
+  if (!cands.length) return autoRoute(), render();
+  const ids = new Set(cands.map((r) => r.id));
+  const byTime = routeForTime(data.logs.filter((l) => ids.has(l.route)), new Date());
+  const pick = cands.find((r) => r.id === byTime) ?? (ids.has(data.current) ? currentRoute() : cands[0]);
+  if (pick.id !== data.current) { data.current = pick.id; save(); toast(`${st.station}駅の近く・この時間なので「${pick.name}」にしました`); }
   render();
 }
 $("use-loc").checked = !!data.useLocation;
@@ -890,10 +892,10 @@ function autoRoute() {
 }
 
 // アプリに戻ってきた時に路線と時刻を今に合わせる（朝開いたまま夕方に記録、を防ぐ）
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { autoRoute(); setTime(); render(); flushOutbox(); locateOnOpen(); } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { if (!data.useLocation) autoRoute(); setTime(); render(); flushOutbox(); locateOnOpen(); } });
 window.addEventListener("online", flushOutbox);
 
-autoRoute();
+if (!data.useLocation) autoRoute(); // 位置情報がオンなら locateOnOpen が（位置→時間帯の順で）決める
 setTime();
 render();
 locateOnOpen();
