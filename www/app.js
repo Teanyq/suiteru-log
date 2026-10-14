@@ -451,10 +451,23 @@ function carsAt(route, d, shared = []) {
   return { est, bests: est.filter((c) => c.value - min < 0.05) }; // 同点（両端など）はまとめて出す
 }
 
+// いつもの朝の時刻（その路線の 5〜11 時の記録の真ん中。少なければ 8:00）
+function usualMorning(route) {
+  const mins = data.logs.filter((l) => l.route === route.id).map((l) => { const x = new Date(l.t); return x.getHours() * 60 + x.getMinutes(); })
+    .filter((m) => m >= 300 && m < 660).sort((a, b) => a - b);
+  return mins.length >= 3 ? mins[mins.length >> 1] : 480;
+}
 function renderCars() {
   const route = currentRoute();
   if (!route) return;
-  const d = timeInput() ?? new Date();
+  let d = timeInput() ?? new Date(), morning = false;
+  // 深夜（0〜4 時）に開いた人がほしいのは「今」ではなく、これから乗る朝の予想
+  if (timeAuto && d.getHours() < 4) {
+    const m = usualMorning(route);
+    d = new Date(d);
+    d.setHours(Math.floor(m / 60), m % 60, 0, 0);
+    morning = true;
+  }
   const slot = slotOf(localIso(d)), daytype = isOffDay(d) ? "we" : "wd";
   const hit = sharedHitOf(route, d);
   const shared = hit?.cars ?? [], moods = hit?.moods ?? [], riders = othersOf(hit, route);
@@ -472,7 +485,7 @@ function renderCars() {
     : `${parts.join("と")}から出しています`;
   const dir = dirOf(route);
   $("car-reco").replaceChildren(
-    el("p", { className: "reco-when", textContent: `${here && Date.now() - here.at < 15 * 60000 ? `📍${here.station}駅の近く・` : ""}${d.getHours()}時ごろ${dir ? `・${dir}方面` : ""}は` }),
+    el("p", { className: "reco-when", textContent: `${here && Date.now() - here.at < 15 * 60000 ? `📍${here.station}駅の近く・` : ""}${morning ? "朝の " : ""}${d.getHours()}時ごろ${dir ? `・${dir}方面` : ""}は` }),
     // 2 両以下は号車の差がほとんどないので、言い切らない（空いてる時間帯は下の「空いてる時間帯」へ）
     (route.cars ?? 10) <= 2
       ? el("p", { className: "reco-head" }, el("strong", { textContent: `${route.cars}両編成` }), " なので号車の差は小さめ。空いてる時間帯は下の「空いてる時間帯」へ")
@@ -484,6 +497,7 @@ function renderCars() {
     el("p", { className: "legend" },
       el("span", {}, el("i", { style: "background:var(--l1)" }), "空いてる"),
       el("span", {}, el("i", { className: "crowded", style: "background-color:var(--l5)" }), "混んでる（斜線）"),
+      el("span", {}, el("i", { className: "guess-swatch" }), "点線は予想（報告なし）"),
       el("span", { textContent: "★ 報告の多さ" }),
       el("button", { type: "button", className: "link-btn", textContent: `${route.cars ?? 10}両編成（変える）`, onclick: pickCars })),
     el("p", { className: "note", textContent: basis }),
