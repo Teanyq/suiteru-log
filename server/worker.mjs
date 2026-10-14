@@ -4,6 +4,9 @@ import { parseReport, aggregate, moodsOf, dayStartJst, RATE_LIMIT_MS, WINDOW_DAY
 // アプリ（Android: https://localhost / iOS: capacitor://localhost）と Web 版からだけ受け付ける
 const ORIGINS = new Set(["https://teanyq.github.io", "https://localhost", "capacitor://localhost", "http://localhost:5180"]);
 const MAX_BODY = 2048;
+// /v1/cars の集計の使い回し（同じ実行環境＝isolate の中で 60 秒）
+const SHARED = new Map();
+const SHARED_TTL_MS = 60 * 1000;
 
 const corsOf = (req) => {
   const o = req.headers.get("Origin");
@@ -72,21 +75,28 @@ export default {
           env.DB.prepare("DELETE FROM views WHERE day < ?").bind(new Date(now - (HELPED_DAYS + 1) * 86400000).toISOString().slice(0, 10)),
         ]);
       }
+      // 集計は路線・方面・平日/休日・枠ごとに 60 秒みんなで使い回す（人気の路線で D1 の読み取り無料枠を使い切らないように）。
+      // そのため端末ごとに「自分の報告を除く」のはやめた（自分の分は 1 号車あたり重み 2 まで。仲間の人数はアプリ側で自分を引く）
+      const key = `${p.line}|${p.dir}|${p.daytype}|${slot}`;
+      const hit = SHARED.get(key);
+      if (hit && now - hit.at < SHARED_TTL_MS) return json(hit.body, 200, { ...cors, "Cache-Control": "public, max-age=60", "X-Shared": "hit" });
       const { results } = await env.DB.prepare(
-        "SELECT device, car, slot, level, created_at FROM reports WHERE line = ? AND dir = ? AND daytype = ? AND slot BETWEEN ? AND ? AND created_at > ? AND device != ? LIMIT 5000")
-        // 自分の報告はアプリ側で記録として数えるので除く（二重に数えない）
-        .bind(p.line, p.dir, p.daytype, slot - 1, slot + 1, now - WINDOW_DAYS * 86400000, device).all();
+        "SELECT device, car, slot, level, created_at FROM reports WHERE line = ? AND dir = ? AND daytype = ? AND slot BETWEEN ? AND ? AND created_at > ? LIMIT 5000")
+        .bind(p.line, p.dir, p.daytype, slot - 1, slot + 1, now - WINDOW_DAYS * 86400000).all();
       // 今日のこの路線・方面の気分スタンプ（号車のあだ名用。3 人未満の号車は返さない）
       const { results: moods } = await env.DB.prepare(
         "SELECT car, mood, device, created_at FROM reports WHERE line = ? AND dir = ? AND created_at >= ? AND mood IS NOT NULL LIMIT 5000")
         .bind(p.line, p.dir, dayStartJst(now)).all();
-      // いまこの号車にいる仲間: 直近 30 分に同じ路線・方面・号車を報告したほかの端末の数
+      // いまこの号車にいる仲間: 直近 30 分に同じ路線・方面・号車を報告した端末の数（自分を含む。アプリが自分を引く）
       const { results: riders } = await env.DB.prepare(
-        "SELECT car, COUNT(DISTINCT device) AS n FROM reports WHERE line = ? AND dir = ? AND created_at > ? AND device != ? GROUP BY car")
-        .bind(p.line, p.dir, now - 30 * 60000, device).all();
+        "SELECT car, COUNT(DISTINCT device) AS n FROM reports WHERE line = ? AND dir = ? AND created_at > ? GROUP BY car")
+        .bind(p.line, p.dir, now - 30 * 60000).all();
       const delay = await env.DB.prepare("SELECT COUNT(DISTINCT device) AS n FROM delays WHERE line = ? AND dir = ? AND created_at > ?")
         .bind(p.line, p.dir, now - DELAY_WINDOW_MS).first();
-      return json({ cars: aggregate(results, slot, now), moods: moodsOf(moods), riders, delays: delay?.n ?? 0 }, 200, { ...cors, "Cache-Control": "public, max-age=60" });
+      const body = { cars: aggregate(results, slot, now), moods: moodsOf(moods), riders, delays: delay?.n ?? 0 };
+      if (SHARED.size > 2000) SHARED.clear(); // ponytail: 同じ実行環境の中だけの使い回し。足りなくなったら KV やカスタムドメインの Cache API へ
+      SHARED.set(key, { at: now, body });
+      return json(body, 200, { ...cors, "Cache-Control": "public, max-age=60", "X-Shared": "miss" });
     }
 
     // この端末の報告がある枠（路線・方面・平日休日・15 分枠）を、ほかの人が何人・日見に来たか（直近 HELPED_DAYS 日）

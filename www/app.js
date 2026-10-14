@@ -434,6 +434,16 @@ const currentRoute = () => data.routes.find((r) => r.id === data.current);
 // 乗換メモで階段・エスカレーターがある号車（どの駅かは問わず、その路線で混みやすい号車とみなす）
 const stairsCarsOf = (routeId) => [...new Set(data.memos.filter((m) => m.route === routeId && m.car && m.tags?.some((t) => t === "stairs" || t === "escalator")).map((m) => m.car))];
 
+// サーバーの「この 30 分に乗っていた人数」は自分も含むので、自分が送った号車から 1 人引く（ほかの仲間だけを見せる）
+// ponytail: 集計を全員で使い回すため、自分の報告も号車の推定に入る（1 号車あたり重み 2 まで）。気になればアプリ側で差し引く
+// 自分の報告が集計に入っているのは、取ってきた集計（hit.at）より前に送り終えた分だけ（送信は記録の約 10 秒後）
+function othersOf(hit, route) {
+  const riders = hit?.riders ?? [];
+  if (!data.share) return riders;
+  const since = localIso(new Date(Date.now() - 30 * 60000)), sentBy = localIso(new Date(hit.at - 60000));
+  const mine = new Set(data.logs.filter((l) => l.route === route?.id && l.car && !l.tags?.length && l.t >= since && l.t <= sentBy).map((l) => l.car));
+  return riders.map((r) => (mine.has(r.car) ? { ...r, n: r.n - 1 } : r)).filter((r) => r.n > 0);
+}
 const sharedHitOf = (route, d) => sharedCache.get(new URLSearchParams({ c: route.line?.c ?? "", l: route.line?.l ?? "", dir: dirOf(route) ?? "", daytype: isOffDay(d) ? "we" : "wd", slot: String(slotOf(localIso(d))) }).toString());
 function carsAt(route, d, shared = []) {
   const est = carEstimates({ route: route.id, cars: route.cars ?? 10, dow: d.getDay(), slot: slotOf(localIso(d)), now: new Date(), logs: recentLogs(), stairsCars: stairsCarsOf(route.id), shared, off: isOffDay(d) });
@@ -447,7 +457,7 @@ function renderCars() {
   const d = timeInput() ?? new Date();
   const slot = slotOf(localIso(d)), daytype = isOffDay(d) ? "we" : "wd";
   const hit = sharedHitOf(route, d);
-  const shared = hit?.cars ?? [], moods = hit?.moods ?? [], riders = hit?.riders ?? [];
+  const shared = hit?.cars ?? [], moods = hit?.moods ?? [], riders = othersOf(hit, route);
   if (data.share && route.line && !renderCars.loading) {
     renderCars.loading = true;
     loadShared(route, daytype, slot).then((r) => { renderCars.loading = false; if (r && r !== hit && (r.cars.length || r.moods.length || r.delays)) renderCars(); });
@@ -540,7 +550,7 @@ function record(level, label) {
   render();
   const check = pred ? `アプリの予想「${LEVELS[pred - 1][1]}」→ ${predHit(log) ? (gained > 0 ? "的中！+5pt" : "的中！") : level < pred ? "予想より空いてた！" : "予想より混んでた…"}
 ` : "";
-  const mates = car && sharedHitOf(route, d)?.riders?.find((r) => r.car === car)?.n;
+  const mates = car && othersOf(sharedHitOf(route, d), route).find((r) => r.car === car)?.n;
   // その号車に今月何回乗ったか（記録から数えるだけ。入力なしの小さな発見）
   const ym = log.t.slice(0, 7), times = car ? data.logs.filter((l) => l.route === log.route && l.car === car && l.t.startsWith(ym)).length : 0;
   // あそびの進み具合（すごろく・ビンゴ）を 1 行で
